@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Content Saver",
+  "version": "1.0",
+  "description": "Effortlessly highlight text, save images, articles, videos, and more.",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
