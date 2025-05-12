@@ -29,12 +29,10 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         pageUrl: pageUrl,
         pageTitle: document.title
       });
-    } 
-  else if (request.action === "highlightText") {
-    highlightSelectedText(request.color || '#ffff00');
-    sendResponse({success: true});
-  }
-  else if (request.action === "getImage") {
+    } else if (request.action === "highlightText") {
+      const result = highlightSelectedText(request.color || '#ffff00');
+      sendResponse(result);
+    } else if (request.action === "getImage") {
     // Get image that's currently focused or under cursor
     // This is simplified - real implementation would need to detect the image
     const images = document.querySelectorAll('img');
