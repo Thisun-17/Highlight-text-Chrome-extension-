@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Content Saver</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Content Saver</h1>
+    <div class="buttons">
+      <button id="saveText">Save Selected Text</button>
+      
+      <div class="highlight-controls">
+        <button id="highlightText">Highlight Selected Text</button>
+        <div class="color-picker">
+          <label for="highlightColor">Color:</label>
+          <input type="color" id="highlightColor" value="#ffff00">
+        </div>
+      </div>
+      
+      <button id="saveImage">Save Image</button>
+      <button id="saveArticle">Save Article</button>
+      <button id="savedItems">View Saved Items</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
