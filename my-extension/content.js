@@ -1,13 +1,27 @@
+// Notify the background script that this content script is ready
+chrome.runtime.sendMessage({action: "contentScriptReady", url: window.location.href});
+
+console.log("Content script loaded for: " + window.location.href);
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   try {
-    if (request.action === "getSelectedText") {
+    // Simple ping-pong for checking if content script is loaded
+    if (request.action === "ping") {
+      console.log("Ping received in content script");
+      sendResponse({status: "ok", url: window.location.href});
+      return true;
+    }
+    else if (request.action === "getSelectedText") {
       const selectedText = window.getSelection().toString();
       const selection = window.getSelection();
       let pageUrl = window.location.href;
       
-      // Get selection position information if there''s text selected
+      // Get selection position information if there's text selected
       let position = null;
+      let existingHighlightColor = null;
+      let isAlreadyHighlighted = false;
+      
       if (selectedText && selection.rangeCount > 0) {
         try {
           const range = selection.getRangeAt(0);
@@ -18,6 +32,17 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
             width: rect.width,
             height: rect.height
           };
+          
+          // Check if the selection is already inside a highlighted element
+          const parentElement = range.commonAncestorContainer.parentElement;
+          if (parentElement && (
+              parentElement.classList.contains('extension-highlighted-text') || 
+              parentElement.style && parentElement.style.backgroundColor)) {
+            isAlreadyHighlighted = true;
+            existingHighlightColor = parentElement.style.backgroundColor || '#ffff00';
+            console.log('Selected text is already highlighted with color:', existingHighlightColor);
+          }
+          
         } catch (e) {
           console.error('Error getting selection position:', e);
         }
@@ -27,13 +52,17 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         selectedText: selectedText,
         position: position,
         pageUrl: pageUrl,
-        pageTitle: document.title
+        pageTitle: document.title,
+        isAlreadyHighlighted: isAlreadyHighlighted,
+        existingHighlightColor: existingHighlightColor
       });
+      return true; // Keep the messaging channel open for async response
     } else if (request.action === "highlightText") {
       const result = highlightSelectedText(request.color || '#ffff00');
       sendResponse(result);
+      return true; // Keep the messaging channel open
     } else if (request.action === "getImage") {
-      // Get image that''s currently focused or under cursor
+      // Get image that's currently focused or under cursor
       const images = document.querySelectorAll('img');
       let imageUrl = null;
       
@@ -46,10 +75,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       }
       
       sendResponse({imageUrl: imageUrl});
+      return true; // Keep the messaging channel open
     }
   } catch (error) {
     console.error('Error in message handler:', error);
     sendResponse({error: true, message: error.message});
+    return true; // Keep the messaging channel open even for errors
   }
   
   // Return true to indicate you wish to send a response asynchronously
@@ -57,7 +88,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 // Add right-click context menu
-document.addEventListener(''contextmenu'', function(event) {
+document.addEventListener('contextmenu', function(event) {
   // You could add custom logic here if needed
 });
 
@@ -65,25 +96,25 @@ document.addEventListener(''contextmenu'', function(event) {
 function highlightSelectedText(color) {
   const selection = window.getSelection();
   if (!selection.rangeCount) {
-    return { success: false, message: ''No text selected'' };
+    return { success: false, message: 'No text selected' };
   }
   
   const range = selection.getRangeAt(0);
-  const highlightSpan = document.createElement(''span'');
-  highlightSpan.className = ''extension-highlighted-text'';
+  const highlightSpan = document.createElement('span');
+  highlightSpan.className = 'extension-highlighted-text';
   highlightSpan.style.backgroundColor = color;
-  highlightSpan.style.display = ''inline'';
+  highlightSpan.style.display = 'inline';
   
   try {
     range.surroundContents(highlightSpan);
     
     // Add data attributes to store highlight information
-    const highlightId = ''highlight-'' + Date.now();
+    const highlightId = 'highlight-' + Date.now();
     highlightSpan.dataset.highlightId = highlightId;
     highlightSpan.dataset.date = new Date().toISOString();
     
     // Make the highlight removable by clicking on it
-    highlightSpan.addEventListener(''click'', function(e) {
+    highlightSpan.addEventListener('click', function(e) {
       if (e.ctrlKey || e.metaKey) {
         // Remove highlight if Ctrl/Cmd is pressed while clicking
         const parent = highlightSpan.parentNode;
@@ -108,7 +139,7 @@ function highlightSelectedText(color) {
       color: color
     };
   } catch (e) {
-    console.error(''Cannot highlight text:'', e);
+    console.error('Cannot highlight text:', e);
     return {
       success: false,
       message: e.message
