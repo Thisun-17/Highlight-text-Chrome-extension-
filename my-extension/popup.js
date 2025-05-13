@@ -87,8 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              '<small>Try a regular webpage instead</small>';
         disableButtonsExcept(savedItemsBtn);
         return;
-      }
-        try {
+      }      try {
         // First attempt to send a message to see if content script is already running
         chrome.tabs.sendMessage(tabs[0].id, {action: "ping"}, function(response) {
           if (chrome.runtime.lastError) {
@@ -154,21 +153,39 @@ document.addEventListener('DOMContentLoaded', function() {
               handleSelectedTextResponse(response);
             });
           }
-        });
-        
-        // Helper function to handle the selected text response
-        function handleSelectedTextResponse(response) {
-          if (response && response.selectedText) {
-            saveToStorage('text', {
-              text: response.selectedText,
-              pageUrl: response.pageUrl,
-              pageTitle: response.pageTitle
-            });
-            statusDiv.textContent = 'Text saved!';
-          } else {
-            statusDiv.textContent = 'No text selected!';
+        });          // Handle the selected text response
+          function handleSelectedTextResponse(response) {
+            if (response && response.selectedText) {
+              // Generate a unique content ID to help with duplicate detection
+              const contentId = `${response.pageUrl}::${response.selectedText.substring(0, 50)}`;
+              
+              // Check if the text was already highlighted on the website
+              if (response.isAlreadyHighlighted && response.existingHighlightColor) {
+                // Save as a highlight with the existing color
+                saveToStorage('highlight', {
+                  text: response.selectedText,
+                  color: response.existingHighlightColor,
+                  pageUrl: response.pageUrl,
+                  pageTitle: response.pageTitle,
+                  position: response.position,
+                  contentId: contentId
+                });
+                statusDiv.textContent = 'Highlighted text saved!';
+              } else {
+                // Save as regular text
+                saveToStorage('text', {
+                  text: response.selectedText,
+                  pageUrl: response.pageUrl,
+                  pageTitle: response.pageTitle,
+                  contentId: contentId
+                });
+                statusDiv.textContent = 'Text saved!';
+              }
+            } else {
+              statusDiv.textContent = 'No text selected!';
+            }
           }
-        }
+        });
       } catch (error) {
         statusDiv.textContent = 'Error communicating with page';
         console.error('Message error:', error);
@@ -212,8 +229,10 @@ document.addEventListener('DOMContentLoaded', function() {
                   statusDiv.textContent = 'Error while highlighting';
                   return;
                 }
-                
-                if (highlightResponse && highlightResponse.success) {
+                  if (highlightResponse && highlightResponse.success) {
+                  // Generate a content ID to help with duplicate detection
+                  const contentId = `${selectionResponse.pageUrl}::${selectionResponse.selectedText.substring(0, 50)}`;
+                  
                   // Save highlight information
                   saveToStorage('highlight', {
                     text: selectionResponse.selectedText,
@@ -221,7 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     pageUrl: selectionResponse.pageUrl,
                     pageTitle: selectionResponse.pageTitle,
                     position: selectionResponse.position,
-                    highlightId: highlightResponse.highlightId
+                    highlightId: highlightResponse.highlightId,
+                    contentId: contentId
                   });
                   statusDiv.textContent = 'Text highlighted and saved!';
                 } else {
@@ -269,9 +289,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 '<small>Please try another webpage</small>';
             return;
           }
-          
-          if (response && response.imageUrl) {
-            saveToStorage('image', response.imageUrl);
+            if (response && response.imageUrl) {
+            // For images, create a unique ID based on image URL
+            const imageUrlObj = new URL(response.imageUrl);
+            const imagePathname = imageUrlObj.pathname;
+            
+            saveToStorage('image', {
+              url: response.imageUrl,
+              contentId: imagePathname
+            });
             statusDiv.textContent = 'Image saved!';
           } else {
             statusDiv.textContent = 'No image found!';
@@ -304,23 +330,70 @@ document.addEventListener('DOMContentLoaded', function() {
   savedItemsBtn.addEventListener('click', function() {
     chrome.tabs.create({url: 'saved.html'});
   });
-
   // Helper function to save to Chrome storage
   function saveToStorage(type, content) {
     chrome.storage.local.get(['savedItems'], function(result) {
       const savedItems = result.savedItems || [];
-      const item = {
-        type: type,
-        content: content,
-        date: new Date().toISOString()
-      };
+      const currentDate = new Date().toISOString();
       
-      // Use the highlightId if available
-      if (type === 'highlight' && content.highlightId) {
-        item.id = content.highlightId;
+      // Create a key to identify duplicate content
+      const contentKey = content.text || content.url || content;
+      const pageUrl = content.pageUrl || (content.url ? content.url : null);
+      
+      // Find existing item with the same content
+      const existingItemIndex = savedItems.findIndex(item => {
+        // Check if the content matches
+        const itemContent = item.content.text || item.content.url || item.content;
+        const itemUrl = item.content.pageUrl || (item.content.url ? item.content.url : null);
+        
+        // Match based on content text and URL
+        return (contentKey === itemContent) && 
+               (!pageUrl || !itemUrl || pageUrl === itemUrl);
+      });
+      
+      if (existingItemIndex !== -1) {
+        // Update the existing item if it's the same content
+        const existingItem = savedItems[existingItemIndex];
+        
+        // If we're highlighting something that was previously just saved as text
+        if (type === 'highlight' && existingItem.type === 'text') {
+          // Update to a highlight instead of text
+          existingItem.type = 'highlight';
+          existingItem.content = {
+            ...existingItem.content,
+            color: content.color,
+            highlightId: content.highlightId
+          };
+          existingItem.date = currentDate;
+        } 
+        // If we're saving the same highlight again, just update the date
+        else if (type === 'highlight' && existingItem.type === 'highlight') {
+          existingItem.content.color = content.color;
+          existingItem.date = currentDate;
+        }
+        // Otherwise, just update the date to bring it to the top
+        else {
+          existingItem.date = currentDate;
+        }
+        
+        console.log('Updated existing item instead of creating a duplicate', existingItem);
+      } else {
+        // Create a new item if no duplicate exists
+        const item = {
+          type: type,
+          content: content,
+          date: currentDate
+        };
+        
+        // Use the highlightId if available
+        if (type === 'highlight' && content.highlightId) {
+          item.id = content.highlightId;
+        }
+        
+        savedItems.push(item);
+        console.log('Added new item', item);
       }
       
-      savedItems.push(item);
       chrome.storage.local.set({savedItems: savedItems});
     });
   }
