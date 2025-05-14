@@ -1,16 +1,16 @@
+// Store the last selected text
+let lastSelectedText = {
+  text: '',
+  pageUrl: '',
+  pageTitle: ''
+};
+
 // Set up context menu items when extension is installed
 chrome.runtime.onInstalled.addListener(function() {
   console.log("Content Saver extension installed/updated");
-
   chrome.contextMenus.create({
-    id: "saveText",
-    title: "Save Selected Text",
-    contexts: ["selection"]
-  });
-  
-  chrome.contextMenus.create({
-    id: "highlightText",
-    title: "Highlight Selected Text",
+    id: "saveAndHighlightText",
+    title: "Save & Highlight Text",
     contexts: ["selection"]
   });
   
@@ -38,35 +38,29 @@ chrome.runtime.onInstalled.addListener(function() {
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(function(info, tab) {  if (info.menuItemId === "saveText" && info.selectionText) {
-    chrome.tabs.sendMessage(tab.id, {action: "getSelectedText"}, function(response) {
-      if (response) {
-        saveToStorage('text', {
-          text: info.selectionText,
-          pageUrl: tab.url,
-          pageTitle: tab.title
-        });
-      }
-    });
-  }   else if (info.menuItemId === "highlightText" && info.selectionText) {
+chrome.contextMenus.onClicked.addListener(function(info, tab) {  if (info.menuItemId === "saveAndHighlightText" && info.selectionText) {
     // Always use soft pink color
     const softPinkColor = '#ffb6c1';
     chrome.tabs.sendMessage(tab.id, {action: "highlightText", color: softPinkColor}, function(response) {
       if (response && response.success) {
-        // Use the unified format with text type
-        saveToStorage('text', {
+        saveToStorage('highlight', {
           text: info.selectionText,
+          color: softPinkColor,
           pageUrl: tab.url,
           pageTitle: tab.title,
-          highlightId: response.highlightId,
-          metadata: {
-            isHighlight: true,
-            color: softPinkColor
-          }
+          highlightId: response.highlightId
+        }, function() {
+          // Show notification that text was saved and highlighted
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon.png',
+            title: 'Text Saved & Highlighted',
+            message: 'The selected text has been saved and highlighted.'
+          });
         });
       }
     });
-  }  else if (info.menuItemId === "saveImage" && info.srcUrl) {
+  }else if (info.menuItemId === "saveImage" && info.srcUrl) {
     saveToStorage('image', info.srcUrl);
   }
   else if (info.menuItemId === "saveArticle") {
@@ -107,6 +101,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         // Handle any response if needed
       });
     }, 500);
+  } else if (request.action === "saveSelectedText") {
+    // Store the last selected text when received from content script
+    lastSelectedText = {
+      text: request.text,
+      pageUrl: request.pageUrl,
+      pageTitle: request.pageTitle
+    };
+    console.log("Saved selected text:", request.text.substring(0, 20) + "...");
   } else if (request.action === "contextMenuOnHighlight") {
     // Show the remove highlight context menu and store the highlight ID
     activeHighlightId = request.highlightId;
@@ -150,22 +152,10 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 });
 
 // Listen for messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Handle content script ready notification
-  if (message.action === "contentScriptReady") {
-    console.log("Content script is ready on:", message.url);
-    return true;
-  }
-  
-  // Handle highlight removal
-  if (message.action === "removeHighlight" && message.highlightId) {
-    removeHighlightFromStorage(message.highlightId);
-    return true;
-  }
-});
+// This listener has been combined with the one above
 
 // Helper function to save to Chrome storage
-function saveToStorage(type, content) {
+function saveToStorage(type, content, callback) {
   chrome.storage.local.get(['savedItems'], function(result) {
     const savedItems = result.savedItems || [];
     
@@ -188,34 +178,28 @@ function saveToStorage(type, content) {
     // If a recent item with same content exists, don't save
     if (recentItemWithSameContent) {
       console.log('Item with same content was recently saved. Skipping duplicate.');
+      if (callback) callback(); // Call the callback even if duplicate
       return;
     }
-      // Create the new item with unified format
-    const timestamp = new Date().toISOString();
-    const id = content.highlightId || ('item-' + Date.now());
     
-    // Determine if this is a highlight
-    const isHighlight = type === 'highlight';
-    
+    // Create the new item
     const item = {
-      id: id,
-      type: 'text', // Always use text type for consistency
-      timestamp: timestamp,
-      date: timestamp, // Keep for backwards compatibility
-      content: type === 'text' || type === 'highlight' ? {
-        text: content.text,
-        pageUrl: content.pageUrl,
-        pageTitle: content.pageTitle,
-        metadata: {
-          isHighlight: isHighlight,
-          highlightId: isHighlight ? (content.highlightId || id) : null,
-          color: isHighlight ? '#ffb6c1' : null
-        }
-      } : content
+      type: type,
+      content: content,
+      date: new Date().toISOString()
     };
+      // Use the highlightId if provided
+    if (type === 'highlight' && content.highlightId) {
+      item.id = content.highlightId;
+    } else {
+      item.id = 'item-' + Date.now();
+    }
     
     savedItems.push(item);
-    chrome.storage.local.set({savedItems: savedItems});
+    chrome.storage.local.set({savedItems: savedItems}, function() {
+      // Call the callback function if provided
+      if (callback) callback();
+    });
   });
 }
 
@@ -224,15 +208,10 @@ function removeHighlightFromStorage(highlightId) {
   chrome.storage.local.get(['savedItems'], function(result) {
     const savedItems = result.savedItems || [];
     
-    // Find the index of the highlight with the unified format
+    // Find the index of the highlight
     const index = savedItems.findIndex(item => 
-      // Check both old format and new unified format
-      (item.type === 'highlight' && 
-       (item.content?.highlightId === highlightId || item.id === highlightId)) ||
-      // Check for our new unified format with metadata
-      (item.type === 'text' && 
-       item.content?.metadata?.isHighlight === true &&
-       (item.content?.metadata?.highlightId === highlightId || item.id === highlightId))
+      item.type === 'highlight' && 
+      (item.content?.highlightId === highlightId || item.id === highlightId)
     );
     
     if (index !== -1) {
