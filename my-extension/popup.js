@@ -1,7 +1,6 @@
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
   const saveTextBtn = document.getElementById('saveText');
-  const highlightTextBtn = document.getElementById('highlightText');
   const saveImageBtn = document.getElementById('saveImage');
   const saveArticleBtn = document.getElementById('saveArticle');
   const statusDiv = document.getElementById('status');
@@ -24,8 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
       const tabId = button.getAttribute('data-tab');
       document.getElementById(`${tabId}-tab`).classList.add('active');
     });
-  });  // Unified function to save both normal text and highlighted text
-  function saveToStorage(type, content, isHighlighted = false) {
+  });  // Update this function to prevent duplicate saving and support callback
+  function saveToStorage(type, content, callback) {
     chrome.storage.local.get(['savedItems'], function(result) {
       const savedItems = result.savedItems || [];
       const timestamp = new Date().toISOString();
@@ -37,40 +36,54 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
       if (isDuplicate) {
         console.log("Item already exists, not saving duplicate");
         showStatus('Item already saved!');
+        if (callback) callback(); // Call the callback even if duplicate
         return; // Exit without saving
       }
-      
-      // Unified format for all text content
-      savedItems.push({
-        id: id,
-        type: 'text', // Always use text type for consistency
-        timestamp: timestamp,
-        date: timestamp, // Keep date field for backwards compatibility
-        content: {
-          text: content.text,
-          pageUrl: content.pageUrl,
-          pageTitle: content.pageTitle,
-          // Metadata for all text items, with isHighlight flag
-          metadata: {
-            isHighlight: isHighlighted,
-            highlightId: isHighlighted ? (content.highlightId || id) : null,
-            color: isHighlighted ? '#ffb6c1' : null
+        // If it's a highlight, standardize it to look like regular text
+      if (type === 'highlight') {
+        // Keep track of highlight attributes for restoration, but simplify display
+        savedItems.push({
+          id: id,
+          type: 'text', // Change type to 'text' for consistent UI
+          timestamp: timestamp, // Use consistent timestamp at root level
+          date: timestamp,      // Keep date field for backwards compatibility
+          content: {
+            text: content.text,
+            pageUrl: content.pageUrl,
+            pageTitle: content.pageTitle,
+            // Store highlight-specific properties in metadata
+            metadata: {
+              isHighlight: true,
+              highlightId: content.highlightId,
+              color: content.color
+            }
           }
-        }
-      });
-      
-      // Update storage
+        });
+      } else {
+        // Standard item saving
+        savedItems.push({
+          id: id,
+          type: type,
+          timestamp: timestamp, // Use consistent timestamp at root level
+          date: timestamp,      // Keep date field for backwards compatibility
+          content: content
+        });
+      }
+        // Update storage
       chrome.storage.local.set({ savedItems: savedItems }, function() {
         console.log(`${type} saved with id: ${id}`);
+        // Execute callback if one was provided
+        if (callback) callback();
       });
     });
   }
-  // Updated helper function to check for duplicates with unified format
+
+  // Add this helper function to check for duplicates
   function checkForDuplicate(savedItems, type, content) {
-    // For text items (both normal and highlighted), check if the same text from the same page already exists
-    if (type === 'text') {
+    // For text and highlight items, check if the same text from the same page already exists
+    if (type === 'text' || type === 'highlight') {
       return savedItems.some(item => {
-        // Check for text items in the unified format
+        // Check for standard text items
         if (item.type === 'text' && 
             item.content && 
             item.content.text === content.text &&
@@ -78,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
           return true;
         }
         
-        // Check for highlight items (old format for backward compatibility)
+        // Check for highlight items (old format)
         if (item.type === 'highlight' && 
             item.content && 
             item.content.text === content.text &&
@@ -130,69 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
     }
   }
 
-  // 1. Save Text button functionality
+  // Save and Highlight Text button functionality
   saveTextBtn.addEventListener('click', function() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs[0]) {
-        showStatus('Unable to access tab', true);
-        return;
-      }
-      
-      // Ensure content script is loaded (similar to highlight functionality)
-      chrome.tabs.sendMessage(tabs[0].id, {action: "ping"}, function(pingResponse) {
-        if (chrome.runtime.lastError) {
-          console.log("Content script not loaded, injecting now");
-          
-          // Inject the content script
-          chrome.scripting.executeScript({
-            target: {tabId: tabs[0].id},
-            files: ['content.js']
-          }).then(() => {
-            // Wait brief moment for script to initialize
-            setTimeout(() => saveTextProcess(tabs[0].id), 100);
-          }).catch(err => {
-            showStatus("Couldn't access this page", true);
-            console.error('Script injection error:', err);
-          });
-        } else {
-          // Content script is already loaded
-          saveTextProcess(tabs[0].id);
-        }
-      });
-      
-      function saveTextProcess(tabId) {
-        try {
-          chrome.tabs.sendMessage(tabId, {action: "getSelectedText"}, function(response) {
-            if (chrome.runtime.lastError) {
-              showStatus('Error accessing page content', true);
-              return;
-            }
-              if (response && response.selectedText) {
-              // Successfully got the selected text
-              // Use the unified function with isHighlighted = false for normal text
-              saveToStorage('text', {
-                text: response.selectedText,
-                pageUrl: response.pageUrl || tabs[0].url,
-                pageTitle: response.pageTitle || tabs[0].title
-              }, false);
-              showStatus('Text saved!');
-            } else {
-              // No text selected or error occurred
-              const errorMessage = response && response.error ? response.error : 'No text selected!';
-              showStatus(errorMessage, true);
-            }
-          });
-        } catch (error) {
-          showStatus('Error communicating with page', true);
-          console.error('Message error:', error);
-        }
-      }
-    });
-  });
-    // 2. Highlight Text button functionality - With fixed soft pink color
-  highlightTextBtn.addEventListener('click', function() {
-    // Always use the soft pink color
-    
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (!tabs[0]) {
         showStatus('Unable to access tab', true);
@@ -201,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
       
       // Ensure content script is loaded
       chrome.tabs.sendMessage(tabs[0].id, {action: "ping"}, function(pingResponse) {
-        // Handle potential error if content script isn't loaded
         if (chrome.runtime.lastError) {
           console.log("Content script not loaded, injecting now");
           
@@ -211,62 +162,68 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
             files: ['content.js']
           }).then(() => {
             // Wait brief moment for script to initialize
-            setTimeout(() => highlightProcess(tabs[0].id), 100);
+            setTimeout(() => saveAndHighlightProcess(tabs[0].id), 100);
           }).catch(err => {
             showStatus("Couldn't access this page", true);
             console.error('Script injection error:', err);
           });
         } else {
           // Content script is already loaded
-          highlightProcess(tabs[0].id);
+          saveAndHighlightProcess(tabs[0].id);
         }
       });
       
-      function highlightProcess(tabId) {
-        // First get selected text
-        chrome.tabs.sendMessage(tabId, {action: "getSelectedText"}, function(selectionResponse) {
-          if (chrome.runtime.lastError) {
-            showStatus('Error accessing page content', true);
-            return;
-          }
-          
-          if (!selectionResponse || !selectionResponse.selectedText) {
-            showStatus('No text selected!', true);
-            return;
-          }
-          
-          // Now send highlight command with soft pink color
-          chrome.tabs.sendMessage(tabId, {            action: "highlightText",
-            color: '#ffb6c1' // Soft pink color
-          }, function(highlightResponse) {
+      function saveAndHighlightProcess(tabId) {
+        try {
+          // First get selected text
+          chrome.tabs.sendMessage(tabId, {action: "getSelectedText"}, function(selectionResponse) {
             if (chrome.runtime.lastError) {
-              showStatus('Error highlighting text', true);
+              showStatus('Error accessing page content', true);
               return;
             }
             
-            console.log("Highlight response:", highlightResponse);
-              if (highlightResponse && highlightResponse.success) {
-              // Successfully highlighted, use unified function with isHighlighted = true
-              saveToStorage('text', {
-                text: selectionResponse.selectedText,
-                pageUrl: selectionResponse.pageUrl,
-                pageTitle: selectionResponse.pageTitle,
-                highlightId: highlightResponse.highlightId,
-                timestamp: new Date().toISOString()
-              }, true); // Set isHighlighted to true
-              showStatus('Text highlighted!');
-            } else {
-              // Error in highlighting
-              const errorMessage = highlightResponse && highlightResponse.error 
-                ? highlightResponse.error 
-                : 'Unknown error';
-              showStatus(`Couldn't highlight: ${errorMessage}`, true);
+            if (!selectionResponse || !selectionResponse.selectedText) {
+              showStatus('No text selected!', true);
+              return;
             }
+            
+            // Now send highlight command with soft pink color
+            chrome.tabs.sendMessage(tabId, {
+              action: "highlightText",
+              color: SOFT_PINK_COLOR
+            }, function(highlightResponse) {
+              if (chrome.runtime.lastError) {
+                showStatus('Error highlighting text', true);
+                return;
+              }
+                if (highlightResponse && highlightResponse.success) {
+                // Successfully highlighted, save to storage and show success message
+                saveToStorage('highlight', {
+                  text: selectionResponse.selectedText,
+                  color: SOFT_PINK_COLOR,
+                  pageUrl: selectionResponse.pageUrl || tabs[0].url,
+                  pageTitle: selectionResponse.pageTitle || tabs[0].title,
+                  highlightId: highlightResponse.highlightId,
+                  timestamp: new Date().toISOString()
+                }, function() {
+                  showStatus('Text saved and highlighted!');
+                  // Don't automatically close the popup to allow the user to continue working
+                });
+              } else {
+                // Error in highlighting
+                const errorMessage = highlightResponse && highlightResponse.error 
+                  ? highlightResponse.error 
+                  : 'Unknown error';
+                showStatus(`Couldn't highlight: ${errorMessage}`, true);
+              }
+            });
           });
-        });
+        } catch (error) {
+          showStatus('Error processing text', true);
+          console.error('Message error:', error);
+        }
       }
-    });
-  });
+    });  });
 
   // Save current image
   saveImageBtn.addEventListener('click', function() {
@@ -290,10 +247,11 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
           if (chrome.runtime.lastError) {
             showStatus('Extension cannot access this page. Please try another webpage.', true);
             return;
-          }
-          if (response && response.imageUrl) {
-            saveToStorage('image', response.imageUrl);
-            showStatus('Image saved!');
+          }          if (response && response.imageUrl) {
+            saveToStorage('image', response.imageUrl, function() {
+              // Show success message and keep popup open
+              showStatus('Image saved!');
+            });
           } else {
             showStatus('No image found!', true);
           }
@@ -311,13 +269,13 @@ document.addEventListener('DOMContentLoaded', function() {  // Get UI elements
       if (!tabs[0]) {
         showStatus('Unable to access the active tab!', true);
         return;
-      }
-      
-      // Unlike other functions, articles can be saved from any page
+      }        // Unlike other functions, articles can be saved from any page
       const url = tabs[0].url;
       const title = tabs[0].title;
-      saveToStorage('article', {url: url, title: title});
-      showStatus('Article saved!');
+      saveToStorage('article', {url: url, title: title}, function() {
+        // Show success message and keep popup open
+        showStatus('Article saved!');
+      });
     });
   });
 
