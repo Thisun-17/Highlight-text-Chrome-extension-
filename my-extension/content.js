@@ -301,3 +301,90 @@ function highlightSelectedText(color) {
     };
   }
 }
+
+// Update the status message in popup.js for saveTextBtn
+chrome.tabs.sendMessage(tabs[0].id, {action: "getSelectedText"}, function(response) {
+  if (response && response.selectedText) {
+    saveToStorage('text', {
+      text: response.selectedText,
+      pageUrl: response.pageUrl,
+      pageTitle: response.pageTitle
+    });
+    statusDiv.textContent = 'Text saved!';
+  } else {
+    statusDiv.textContent = 'No text selected!';
+  }
+});
+
+// Update the status message in popup.js for highlightTextBtn
+if (highlightResponse && highlightResponse.success) {
+  saveToStorage('highlight', {
+    text: selectionResponse.selectedText,
+    color: highlightColor,
+    pageUrl: selectionResponse.pageUrl,
+    pageTitle: selectionResponse.pageTitle,
+    highlightId: highlightResponse.highlightId
+  });
+  statusDiv.textContent = 'Text highlighted!';
+} else {
+  statusDiv.textContent = 'Error highlighting text';
+}
+
+// Update the status message in popup.js for saveImageBtn
+if (response && response.imageUrl) {
+  saveToStorage('image', response.imageUrl);
+  statusDiv.textContent = 'Image saved!';
+} else {
+  statusDiv.textContent = 'No image found!';
+}
+
+// Update the status message in popup.js for saveArticleBtn
+saveToStorage('article', {url: url, title: title});
+statusDiv.textContent = 'Article saved!';
+
+// Add this to your popup.js file
+document.addEventListener('DOMContentLoaded', function() {
+  // Tab functionality
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Remove active class from all buttons and contents
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+      
+      // Add active class to clicked button and corresponding content
+      button.classList.add('active');
+      const tabId = button.getAttribute('data-tab');
+      document.getElementById(`${tabId}-tab`).classList.add('active');
+    });
+  });
+  
+  // Your existing code for buttons goes here...
+  
+  // Enhancement for status messages
+  function showStatus(message, isError = false) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.textContent = message;
+    statusDiv.className = 'status-area';
+    
+    if (isError) {
+      statusDiv.classList.add('error-message');
+    } else {
+      statusDiv.classList.add('success-message');
+    }
+    
+    // Auto-hide success messages after 3 seconds
+    if (!isError) {
+      setTimeout(() => {
+        statusDiv.textContent = '';
+        statusDiv.className = 'status-area';
+      }, 3000);
+    }
+  }
+  
+  // You can use this function in your existing code:
+  // showStatus('Text saved!');
+  // showStatus('No text selected!', true);
+});
