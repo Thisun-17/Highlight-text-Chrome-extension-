@@ -33,18 +33,12 @@ chrome.runtime.onInstalled.addListener(function() {
     contexts: ["all"],
     visible: false
   });
-  
-  // Initialize user preferences for highlight color
-  chrome.storage.local.get(['highlightColor'], function(result) {
-    if (!result.highlightColor) {
-      chrome.storage.local.set({highlightColor: '#ffff00'});
-    }
-  });
+    // Set soft pink as the only highlight color
+  chrome.storage.local.set({highlightColor: '#ffb6c1'});
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(function(info, tab) {
-  if (info.menuItemId === "saveText" && info.selectionText) {
+chrome.contextMenus.onClicked.addListener(function(info, tab) {  if (info.menuItemId === "saveText" && info.selectionText) {
     chrome.tabs.sendMessage(tab.id, {action: "getSelectedText"}, function(response) {
       if (response) {
         saveToStorage('text', {
@@ -54,22 +48,23 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
         });
       }
     });
-  } 
-  else if (info.menuItemId === "highlightText" && info.selectionText) {
-    // Get user's preferred highlight color
-    chrome.storage.local.get(['highlightColor'], function(result) {
-      const color = result.highlightColor || '#ffff00';
-        chrome.tabs.sendMessage(tab.id, {action: "highlightText", color: color}, function(response) {
-        if (response && response.success) {
-          saveToStorage('highlight', {
-            text: info.selectionText,
-            color: color,
-            pageUrl: tab.url,
-            pageTitle: tab.title,
-            highlightId: response.highlightId
-          });
-        }
-      });
+  }   else if (info.menuItemId === "highlightText" && info.selectionText) {
+    // Always use soft pink color
+    const softPinkColor = '#ffb6c1';
+    chrome.tabs.sendMessage(tab.id, {action: "highlightText", color: softPinkColor}, function(response) {
+      if (response && response.success) {
+        // Use the unified format with text type
+        saveToStorage('text', {
+          text: info.selectionText,
+          pageUrl: tab.url,
+          pageTitle: tab.title,
+          highlightId: response.highlightId,
+          metadata: {
+            isHighlight: true,
+            color: softPinkColor
+          }
+        });
+      }
     });
   }  else if (info.menuItemId === "saveImage" && info.srcUrl) {
     saveToStorage('image', info.srcUrl);
@@ -195,20 +190,29 @@ function saveToStorage(type, content) {
       console.log('Item with same content was recently saved. Skipping duplicate.');
       return;
     }
+      // Create the new item with unified format
+    const timestamp = new Date().toISOString();
+    const id = content.highlightId || ('item-' + Date.now());
     
-    // Create the new item
+    // Determine if this is a highlight
+    const isHighlight = type === 'highlight';
+    
     const item = {
-      type: type,
-      content: content,
-      date: new Date().toISOString()
+      id: id,
+      type: 'text', // Always use text type for consistency
+      timestamp: timestamp,
+      date: timestamp, // Keep for backwards compatibility
+      content: type === 'text' || type === 'highlight' ? {
+        text: content.text,
+        pageUrl: content.pageUrl,
+        pageTitle: content.pageTitle,
+        metadata: {
+          isHighlight: isHighlight,
+          highlightId: isHighlight ? (content.highlightId || id) : null,
+          color: isHighlight ? '#ffb6c1' : null
+        }
+      } : content
     };
-    
-    // Use the highlightId if provided
-    if (type === 'highlight' && content.highlightId) {
-      item.id = content.highlightId;
-    } else {
-      item.id = 'item-' + Date.now();
-    }
     
     savedItems.push(item);
     chrome.storage.local.set({savedItems: savedItems});
@@ -220,10 +224,15 @@ function removeHighlightFromStorage(highlightId) {
   chrome.storage.local.get(['savedItems'], function(result) {
     const savedItems = result.savedItems || [];
     
-    // Find the index of the highlight
+    // Find the index of the highlight with the unified format
     const index = savedItems.findIndex(item => 
-      item.type === 'highlight' && 
-      (item.content?.highlightId === highlightId || item.id === highlightId)
+      // Check both old format and new unified format
+      (item.type === 'highlight' && 
+       (item.content?.highlightId === highlightId || item.id === highlightId)) ||
+      // Check for our new unified format with metadata
+      (item.type === 'text' && 
+       item.content?.metadata?.isHighlight === true &&
+       (item.content?.metadata?.highlightId === highlightId || item.id === highlightId))
     );
     
     if (index !== -1) {
