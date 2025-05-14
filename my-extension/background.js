@@ -1,10 +1,3 @@
-// Store the last selected text
-let lastSelectedText = {
-  text: '',
-  pageUrl: '',
-  pageTitle: ''
-};
-
 // Set up context menu items when extension is installed
 chrome.runtime.onInstalled.addListener(function() {
   console.log("Content Saver extension installed/updated");
@@ -101,14 +94,6 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         // Handle any response if needed
       });
     }, 500);
-  } else if (request.action === "saveSelectedText") {
-    // Store the last selected text when received from content script
-    lastSelectedText = {
-      text: request.text,
-      pageUrl: request.pageUrl,
-      pageTitle: request.pageTitle
-    };
-    console.log("Saved selected text:", request.text.substring(0, 20) + "...");
   } else if (request.action === "contextMenuOnHighlight") {
     // Show the remove highlight context menu and store the highlight ID
     activeHighlightId = request.highlightId;
@@ -152,7 +137,19 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 });
 
 // Listen for messages
-// This listener has been combined with the one above
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle content script ready notification
+  if (message.action === "contentScriptReady") {
+    console.log("Content script is ready on:", message.url);
+    return true;
+  }
+  
+  // Handle highlight removal
+  if (message.action === "removeHighlight" && message.highlightId) {
+    removeHighlightFromStorage(message.highlightId);
+    return true;
+  }
+});
 
 // Helper function to save to Chrome storage
 function saveToStorage(type, content, callback) {
