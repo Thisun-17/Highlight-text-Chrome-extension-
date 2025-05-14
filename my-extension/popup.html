@@ -12,24 +12,32 @@
       <h1><i class="fas fa-bookmark"></i> Content Saver</h1>
     </header>
     
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="capture">Capture</button>
-      <button class="tab-btn" data-tab="view">View Saved</button>
-      <button class="tab-btn" data-tab="notes">Notes</button>
-    </div>
+    <nav class="tab-navigation">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="capture">
+          <i class="fas fa-camera"></i> Capture
+        </button>
+        <button class="tab-btn" data-tab="view">
+          <i class="fas fa-eye"></i> View Saved
+        </button>
+        <button class="tab-btn" data-tab="notes">
+          <i class="fas fa-edit"></i> Notes
+        </button>
+      </div>
+    </nav>
     
-    <div id="capture-tab" class="tab-content active">
-      <div class="card">
-        <div class="card-header text-card">
-          <i class="fas fa-font"></i> Text
-        </div>
-        <div class="card-body">
-          <button id="saveText" class="action-button">
-            <i class="fas fa-save"></i> Save Selected Text
-          </button>
+    <main>
+      <div id="capture-tab" class="tab-content active">
+        <section class="content-section">
+          <h2 class="section-title">Text</h2>
+          <div class="button-container">
+            <button id="saveText" class="primary-button">
+              <i class="fas fa-save"></i> Save Selected Text
+            </button>
+          </div>
           
-          <div class="highlight-controls">
-            <button id="highlightText" class="action-button highlight-btn">
+          <div class="highlight-section">
+            <button id="highlightText" class="primary-button highlight-btn">
               <i class="fas fa-highlighter"></i> Highlight Text
             </button>
             <div class="color-picker">
@@ -37,54 +45,58 @@
               <input type="color" id="highlightColor" value="#ffff00">
             </div>
           </div>
-        </div>
+        </section>
+        
+        <section class="content-section">
+          <h2 class="section-title">Media</h2>
+          <div class="button-grid">
+            <button id="saveImage" class="primary-button">
+              <i class="fas fa-camera"></i> Save Image
+            </button>
+            
+            <button id="saveArticle" class="primary-button">
+              <i class="fas fa-newspaper"></i> Save Article
+            </button>
+          </div>
+        </section>
       </div>
       
-      <div class="card">
-        <div class="card-header media-card">
-          <i class="fas fa-image"></i> Media
-        </div>
-        <div class="card-body">
-          <button id="saveImage" class="action-button">
-            <i class="fas fa-camera"></i> Save Image
+      <div id="view-tab" class="tab-content">
+        <section class="content-section center-content">
+          <h2 class="section-title">Saved Content</h2>
+          <p class="description">Access all your saved highlights, texts, and media</p>
+          <button id="savedItems" class="primary-button full-width">
+            <i class="fas fa-list"></i> View All Saved Items
           </button>
-          
-          <button id="saveArticle" class="action-button">
-            <i class="fas fa-newspaper"></i> Save Article
-          </button>
-        </div>
+        </section>
       </div>
-    </div>
-    
-    <div id="view-tab" class="tab-content">
-      <button id="savedItems" class="full-width-button">
-        <i class="fas fa-list"></i> View All Saved Items
-      </button>
-    </div>
-    
-    <div id="notes-tab" class="tab-content">
-      <div class="card">
-        <div class="card-header notes-card">
-          <i class="fas fa-edit"></i> Quick Notes
-          <div class="text-color-controls">
-            <input type="color" id="textColorPicker" value="#fefefe" title="Change text color">
+      
+      <div id="notes-tab" class="tab-content">
+        <section class="content-section">
+          <div class="notes-header">
+            <h2 class="section-title">Quick Notes</h2>
+            <div class="text-color-controls">
+              <input type="color" id="textColorPicker" value="#fefefe" title="Change text color">
+            </div>
           </div>
-        </div>
-        <div class="card-body">
+          
           <textarea id="notesInput" placeholder="Type your notes here..." class="notes-textarea"></textarea>
-          <div class="notes-actions">
-            <button id="saveNotes" class="action-button">
+          
+          <div class="button-grid">
+            <button id="saveNotes" class="primary-button">
               <i class="fas fa-save"></i> Save Notes
             </button>
             <button id="clearNotes" class="secondary-button">
               <i class="fas fa-trash-alt"></i> Clear
             </button>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
     
-    <div id="status" class="status-area"></div>
+    <footer>
+      <div id="status" class="status-area"></div>
+    </footer>
   </div>
   
   <script src="popup.js" type="text/javascript"></script>
