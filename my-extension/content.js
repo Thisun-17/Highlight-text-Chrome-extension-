@@ -3,6 +3,16 @@ chrome.runtime.sendMessage({action: "contentScriptReady", url: window.location.h
 
 console.log("Content script loaded for: " + window.location.href);
 
+// Wait for document to be fully loaded before restoring highlights
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(restoreHighlights, 500); // Small delay to ensure DOM is fully processed
+  });
+} else {
+  // If already loaded, restore with a small delay
+  setTimeout(restoreHighlights, 500);
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   try {
@@ -10,6 +20,32 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === "ping") {
       console.log("Ping received in content script");
       sendResponse({status: "ok", url: window.location.href});
+      return true;
+    }
+    else if (request.action === "restoreHighlights") {
+      // Restore highlights when explicitly requested
+      restoreHighlights();
+      sendResponse({status: "ok"});
+      return true;
+    }
+    else if (request.action === "removeHighlightById") {
+      // Handle remote removal of a highlight by ID
+      const highlightId = request.highlightId;
+      if (highlightId) {
+        const highlightEl = document.querySelector(`[data-highlight-id="${highlightId}"]`);
+        if (highlightEl) {
+          const parent = highlightEl.parentNode;
+          // Move all children out of the highlight element
+          while (highlightEl.firstChild) {
+            parent.insertBefore(highlightEl.firstChild, highlightEl);
+          }
+          // Remove the empty highlight element
+          parent.removeChild(highlightEl);
+          sendResponse({success: true});
+        } else {
+          sendResponse({success: false, message: 'Highlight element not found'});
+        }
+      }
       return true;
     }
     else if (request.action === "getSelectedText") {
@@ -89,8 +125,124 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Add right-click context menu
 document.addEventListener('contextmenu', function(event) {
-  // You could add custom logic here if needed
+  // Check if right-click is on a highlighted element
+  let target = event.target;
+  
+  // Find if the target or any parent is a highlight
+  while (target && target !== document.body) {
+    if (target.classList && target.classList.contains('extension-highlighted-text')) {
+      // Store the highlight element ID in a variable for later use
+      const highlightId = target.dataset.highlightId;
+      if (highlightId) {
+        chrome.runtime.sendMessage({
+          action: "contextMenuOnHighlight",
+          highlightId: highlightId
+        });
+      }
+      break;
+    }
+    target = target.parentElement;
+  }
 });
+
+// Function to restore highlights from storage
+function restoreHighlights() {
+  const currentUrl = window.location.href;
+  
+  // Get saved highlights from storage
+  chrome.storage.local.get(['savedItems'], function(result) {
+    const savedItems = result.savedItems || [];
+    
+    // Filter highlights for this page
+    const pageHighlights = savedItems.filter(item => 
+      item.type === 'highlight' && 
+      item.content && 
+      item.content.pageUrl === currentUrl
+    );
+    
+    if (pageHighlights.length > 0) {
+      console.log(`Restoring ${pageHighlights.length} highlights on this page`);
+      
+      // Process each highlight
+      pageHighlights.forEach(highlight => {
+        if (highlight.content.text && highlight.content.color) {
+          applyStoredHighlight(highlight);
+        }
+      });
+    }
+  });
+}
+
+// Function to apply a stored highlight to the page
+function applyStoredHighlight(highlight) {
+  const text = highlight.content.text;
+  const color = highlight.content.color;
+  const highlightId = highlight.id;
+  
+  if (!text || text.length === 0) return;
+  
+  // Find all text nodes in the document
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    { acceptNode: node => node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT }
+  );
+  
+  // Process each matching text node
+  let node;
+  let found = false;
+  while (node = walker.nextNode()) {
+    const content = node.textContent;
+    const index = content.indexOf(text);
+    
+    if (index >= 0) {
+      // Create a range for the matching text
+      const range = document.createRange();
+      range.setStart(node, index);
+      range.setEnd(node, index + text.length);
+      
+      // Create highlight span
+      const highlightSpan = document.createElement('span');
+      highlightSpan.className = 'extension-highlighted-text';
+      highlightSpan.style.backgroundColor = color;
+      highlightSpan.style.display = 'inline';
+      highlightSpan.dataset.highlightId = highlightId;
+      highlightSpan.dataset.date = highlight.date || new Date().toISOString();
+      
+      // Apply the highlight
+      try {
+        range.surroundContents(highlightSpan);
+        
+        // Make the highlight removable by clicking on it
+        highlightSpan.addEventListener('click', function(e) {
+          if (e.ctrlKey || e.metaKey) {
+            // Remove highlight if Ctrl/Cmd is pressed while clicking
+            const parent = highlightSpan.parentNode;
+            while (highlightSpan.firstChild) {
+              parent.insertBefore(highlightSpan.firstChild, highlightSpan);
+            }
+            parent.removeChild(highlightSpan);
+            
+            // Notify background script to remove from storage
+            chrome.runtime.sendMessage({
+              action: "removeHighlight",
+              highlightId: highlightId
+            });
+          }
+        });
+        
+        found = true;
+        break; // Stop after first match to avoid multiple highlights
+      } catch (e) {
+        console.error('Error applying stored highlight:', e);
+      }
+    }
+  }
+  
+  if (!found) {
+    console.log(`Could not find text to highlight: "${text.substring(0, 20)}..."`);
+  }
+}
 
 // Function to highlight the currently selected text
 function highlightSelectedText(color) {
@@ -110,8 +262,10 @@ function highlightSelectedText(color) {
     
     // Add data attributes to store highlight information
     const highlightId = 'highlight-' + Date.now();
+    const currentDate = new Date().toISOString();
     highlightSpan.dataset.highlightId = highlightId;
-    highlightSpan.dataset.date = new Date().toISOString();
+    highlightSpan.dataset.date = currentDate;
+    highlightSpan.dataset.pageUrl = window.location.href;
     
     // Make the highlight removable by clicking on it
     highlightSpan.addEventListener('click', function(e) {
@@ -136,7 +290,8 @@ function highlightSelectedText(color) {
       success: true,
       highlightId: highlightId,
       text: highlightSpan.textContent,
-      color: color
+      color: color,
+      date: currentDate
     };
   } catch (e) {
     console.error('Cannot highlight text:', e);
