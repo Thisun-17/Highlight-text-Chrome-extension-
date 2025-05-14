@@ -103,12 +103,15 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === "removeHighlight" && request.highlightId) {
     removeHighlightFromStorage(request.highlightId);
   } else if (request.action === "contentScriptReady") {
+    console.log("Content script is ready on tab:", sender.tab.id);
     // Send a message to trigger highlight restoration
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (tabs[0] && tabs[0].id === sender.tab.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {action: "restoreHighlights"});
-      }
-    });
+    // Use a timeout to ensure the DOM is fully loaded
+    setTimeout(() => {
+      chrome.tabs.sendMessage(sender.tab.id, {action: "restoreHighlights"}, function(response) {
+        console.log("Restore highlights message sent to tab:", sender.tab.id);
+        // Handle any response if needed
+      });
+    }, 500);
   } else if (request.action === "contextMenuOnHighlight") {
     // Show the remove highlight context menu and store the highlight ID
     activeHighlightId = request.highlightId;
@@ -117,6 +120,37 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     chrome.contextMenus.update("removeHighlight", {
       visible: true
     });
+  }
+});
+
+// Listen for tab updates to handle page refreshes and navigation
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  // Only act when the tab has completed loading
+  if (changeInfo.status === 'complete' && tab.url.startsWith('http')) {
+    console.log("Tab updated and loaded:", tabId, tab.url);
+    
+    // Give the content script a moment to initialize before sending the restore message
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, {action: "restoreHighlights"}, function(response) {
+        // If there's an error, the content script may not be loaded yet
+        if (chrome.runtime.lastError) {
+          console.log("Content script not ready, injecting now");
+          
+          // Inject the content script manually
+          chrome.scripting.executeScript({
+            target: {tabId: tabId},
+            files: ['content.js']
+          }).then(() => {
+            // Wait a moment for the script to initialize, then restore highlights
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, {action: "restoreHighlights"});
+            }, 300);
+          }).catch(err => {
+            console.error("Failed to inject content script:", err);
+          });
+        }
+      });
+    }, 500);
   }
 });
 
