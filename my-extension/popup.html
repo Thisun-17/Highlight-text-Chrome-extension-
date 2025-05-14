@@ -1,28 +1,92 @@
 <!DOCTYPE html>
 <html>
-<head>  <title>Content Saver</title>
+<head>
+  <title>Content Saver</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
   <div class="container">
-    <h1>Content Saver</h1>
-    <div class="buttons">
-      <button id="saveText">Save Selected Text</button>
-      
-      <div class="highlight-controls">
-        <button id="highlightText">Highlight Selected Text</button>
-        <div class="color-picker">
-          <label for="highlightColor">Color:</label>
-          <input type="color" id="highlightColor" value="#ffff00">
+    <header>
+      <h1><i class="fas fa-bookmark"></i> Content Saver</h1>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="capture">Capture</button>
+      <button class="tab-btn" data-tab="view">View Saved</button>
+      <button class="tab-btn" data-tab="notes">Notes</button>
+    </div>
+    
+    <div id="capture-tab" class="tab-content active">
+      <div class="card">
+        <div class="card-header text-card">
+          <i class="fas fa-font"></i> Text
+        </div>
+        <div class="card-body">
+          <button id="saveText" class="action-button">
+            <i class="fas fa-save"></i> Save Selected Text
+          </button>
+          
+          <div class="highlight-controls">
+            <button id="highlightText" class="action-button highlight-btn">
+              <i class="fas fa-highlighter"></i> Highlight Text
+            </button>
+            <div class="color-picker">
+              <label for="highlightColor">Color:</label>
+              <input type="color" id="highlightColor" value="#ffff00">
+            </div>
+          </div>
         </div>
       </div>
       
-      <button id="saveImage">Save Image</button>
-      <button id="saveArticle">Save Article</button>
-      <button id="savedItems">View Saved Items</button>
+      <div class="card">
+        <div class="card-header media-card">
+          <i class="fas fa-image"></i> Media
+        </div>
+        <div class="card-body">
+          <button id="saveImage" class="action-button">
+            <i class="fas fa-camera"></i> Save Image
+          </button>
+          
+          <button id="saveArticle" class="action-button">
+            <i class="fas fa-newspaper"></i> Save Article
+          </button>
+        </div>
+      </div>
     </div>
-    <div id="status"></div>
+    
+    <div id="view-tab" class="tab-content">
+      <button id="savedItems" class="full-width-button">
+        <i class="fas fa-list"></i> View All Saved Items
+      </button>
+    </div>
+    
+    <div id="notes-tab" class="tab-content">
+      <div class="card">
+        <div class="card-header notes-card">
+          <i class="fas fa-edit"></i> Quick Notes
+          <div class="text-color-controls">
+            <input type="color" id="textColorPicker" value="#fefefe" title="Change text color">
+          </div>
+        </div>
+        <div class="card-body">
+          <textarea id="notesInput" placeholder="Type your notes here..." class="notes-textarea"></textarea>
+          <div class="notes-actions">
+            <button id="saveNotes" class="action-button">
+              <i class="fas fa-save"></i> Save Notes
+            </button>
+            <button id="clearNotes" class="secondary-button">
+              <i class="fas fa-trash-alt"></i> Clear
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="status" class="status-area"></div>
   </div>
+  
   <script src="popup.js" type="text/javascript"></script>
 </body>
 </html>
