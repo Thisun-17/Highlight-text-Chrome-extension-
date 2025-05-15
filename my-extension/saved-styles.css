@@ -114,6 +114,25 @@ h1 {
   margin: 5px 0;
 }
 
+.item-notes {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #f8f8f8;
+  border-left: 3px solid #4a90e2;
+  border-radius: 0 4px 4px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.notes-label {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+.notes-content {
+  color: #555;
+}
+
 .highlight-info {
   font-size: 12px;
   color: var(--secondary-text-color);
@@ -334,7 +353,7 @@ h1 {
   font-size: 16px;
   padding: 8px;
   border-radius: 50%;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .card-action-btn:hover {
@@ -393,4 +412,13 @@ h1 {
   .card-container {
     grid-template-columns: 1fr;
   }
+}
+
+.delete-btn {
+  color: #e74c3c;
+}
+
+.delete-btn:hover {
+  color: #fff;
+  background-color: #e74c3c;
 }

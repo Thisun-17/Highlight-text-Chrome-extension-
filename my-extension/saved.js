@@ -159,7 +159,29 @@ function createItemCard(item) {
   
   textElement.textContent = item.text;
   cardContent.appendChild(textElement);
-    // Add source information if available
+  
+  // Add notes if available
+  if (item.notes || (item.content && item.content.notes)) {
+    const notesText = item.notes || item.content.notes;
+    if (notesText && notesText.trim() !== '') {
+      const notesElement = document.createElement('div');
+      notesElement.className = 'item-notes';
+      
+      const notesLabel = document.createElement('span');
+      notesLabel.className = 'notes-label';
+      notesLabel.textContent = 'Note: ';
+      
+      const notesContent = document.createElement('span');
+      notesContent.className = 'notes-content';
+      notesContent.textContent = notesText;
+      
+      notesElement.appendChild(notesLabel);
+      notesElement.appendChild(notesContent);
+      cardContent.appendChild(notesElement);
+    }
+  }
+  
+  // Add source information if available
   if ((item.pageUrl || item.url) && (item.pageTitle || item.title)) {
     const sourceElement = document.createElement('div');
     sourceElement.className = 'source';
@@ -208,7 +230,8 @@ function createItemCard(item) {
   deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
   deleteButton.title = 'Delete this item';
   deleteButton.dataset.id = item.id;
-    // Add share button
+  
+  // Add share button
   const shareButton = document.createElement('button');
   shareButton.className = 'card-action-btn share-btn';
   shareButton.innerHTML = '<i class="fas fa-share-alt"></i>';
@@ -217,6 +240,7 @@ function createItemCard(item) {
     shareItem(item);
   });
   
+  // Add buttons to card actions (place delete button last for better UX)
   cardActions.appendChild(shareButton);
   cardActions.appendChild(deleteButton);
   card.appendChild(cardActions);
