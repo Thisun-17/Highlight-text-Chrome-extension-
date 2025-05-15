@@ -167,12 +167,12 @@ main {
 }
 
 .highlight-btn {
-  background-color: #ffb6c1; /* Soft pink */
+  background-color: #90ee90; /* Light green */
   color: #333;
 }
 
 .highlight-btn:hover {
-  background-color: #ff9eb5; /* Slightly darker pink on hover */
+  background-color: #70dc70; /* Slightly darker green on hover */
 }
 
 .secondary-button {

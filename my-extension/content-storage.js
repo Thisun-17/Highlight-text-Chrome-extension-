@@ -58,10 +58,9 @@ function saveHighlightedText(content, callback) {
     // Create highlight item
     const highlightItem = {
       id: content.highlightId || 'highlight-' + Date.now(),
-      text: textContent,
-      pageUrl: content.pageUrl,
+      text: textContent,      pageUrl: content.pageUrl,
       pageTitle: content.pageTitle,
-      color: content.color || '#ffb6c1', // Default to soft pink
+      color: content.color || '#90ee90', // Default to light green
       timestamp: new Date().toISOString()
     };
     
@@ -81,11 +80,26 @@ function loadAllSavedContent() {
       const legacyItems = result.savedItems || [];
       const textItems = result.savedTextItems || [];
       const highlights = result.savedHighlights || [];
-      
-      // Combine all items and convert to a unified format if needed
+        // Combine all items and convert to a unified format if needed
       const allItems = [
         // Convert legacy items if needed
         ...legacyItems.map(item => {
+          // Handle article type separately
+          if (item.type === 'article') {
+            return {
+              id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
+              type: 'article',
+              text: item.content?.text || item.content?.description || item.content?.title || '',
+              pageUrl: item.content?.pageUrl || item.content?.url || '',
+              pageTitle: item.content?.pageTitle || item.content?.title || '',
+              url: item.content?.url || item.content?.pageUrl || '',
+              title: item.content?.title || item.content?.pageTitle || '',
+              timestamp: item.timestamp || item.date || new Date().toISOString(),
+              isLegacy: true
+            };
+          }
+          
+          // Handle other types
           return {
             id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
             type: item.type,

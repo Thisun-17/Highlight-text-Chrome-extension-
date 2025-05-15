@@ -1,476 +1,524 @@
 // Add this to the top of your content.js file to ensure highlights are styled properly
-(function() {
-  // Add CSS for highlights if it doesn't exist
+console.log("🟢 Content script loading...");
+
+// SPECIAL DEBUG MODE - Add this to troubleshoot highlighting issues
+const DEBUG_MODE = true;
+function debugLog(message) {
+  if (DEBUG_MODE) {
+    console.log(`🔍 DEBUG: ${message}`);
+  }
+}
+
+// SPECIAL FIX: Direct approach for text selection
+function captureTextSelection() {
+  // Capture any text that's selected on the page
+  const selection = window.getSelection();
+  if (selection && selection.toString().trim() !== '') {
+    const selectedText = selection.toString().trim();
+    debugLog(`DIRECT CAPTURE: Selected text: ${selectedText.substring(0, 50)}...`);
+    
+    // Store in multiple places to ensure it's available to the popup
+    // 1. Local storage (synchronous)
+    try {
+      localStorage.setItem('extensionSelectedText', selectedText);
+    } catch (e) {
+      console.error("Failed to store in localStorage:", e);
+    }
+    
+    // 2. Chrome storage (asynchronous)
+    try {
+      chrome.storage.local.set({ 'currentSelectedText': selectedText }, function() {
+        debugLog("DIRECT SAVE: Text saved to chrome.storage");
+      });
+    } catch (e) {
+      console.error("Failed to store in chrome.storage:", e);
+    }
+    
+    // 3. Notify background script
+    try {
+      chrome.runtime.sendMessage({
+        action: "saveSelectedText",
+        text: selectedText
+      }, function(response) {
+        debugLog("DIRECT NOTIFY: Background script notified");
+      });
+    } catch (e) {
+      console.error("Failed to notify background script:", e);
+    }
+    
+    return selectedText;
+  }
+  return "";
+}
+
+// Monitor text selection with various events for maximum reliability
+document.addEventListener('mouseup', function(e) {
+  setTimeout(captureTextSelection, 10); // Small delay to ensure selection is complete
+}, true);
+
+document.addEventListener('keyup', function(e) {
+  // Capture after keyboard selection (Shift+Arrow keys)
+  if (e.shiftKey) {
+    setTimeout(captureTextSelection, 10);
+  }
+}, true);
+
+document.addEventListener('selectionchange', function() {
+  // Debounce this frequent event
+  clearTimeout(window._selectionChangeTimer);
+  window._selectionChangeTimer = setTimeout(captureTextSelection, 250);
+});
+
+// Enhanced style injection that makes highlighting more reliable across sites
+function ensureHighlightStylesExist() {
   if (!document.querySelector('#data-flowx-styles')) {
+    console.log("Adding highlight styles to page");
     const style = document.createElement('style');
     style.id = 'data-flowx-styles';
     style.textContent = `
       .data-flowx-highlight {
-        background-color: #ffb6c1;  /* Soft pink - constant for all highlights */
-        display: inline;
-        border-radius: 2px;
-        padding: 0 1px;
-        margin: 0 1px;
-        cursor: help;
-        position: relative;
+        background-color: #90EE90 !important;  /* Light green - with !important */
+        display: inline !important;
+        border-radius: 2px !important;
+        padding: 0 1px !important;
+        margin: 0 1px !important;
+        position: relative !important;
+        z-index: 1 !important;
       }
       
       .data-flowx-highlight:hover {
-        opacity: 0.9;
-      }
-      
-      .data-flowx-highlight.fuzzy-match {
-        border-bottom: 1px dashed #000;
+        opacity: 0.9 !important;
       }
     `;
-    document.head.appendChild(style);
-    console.log("Added highlight styles to page");
-  }
-})();
-
-// Notify the background script that this content script is ready
-chrome.runtime.sendMessage({action: "contentScriptReady", url: window.location.href});
-
-console.log("Content script loaded for: " + window.location.href);
-
-// Wait for document to be fully loaded before restoring highlights
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    // First attempt at restoration with a short delay
-    setTimeout(restoreHighlights, 500);
     
-    // Second attempt when page is fully loaded with resources
-    window.addEventListener('load', function() {
-      setTimeout(restoreHighlights, 300);
-    });
-  });
-} else {
-  // If already loaded, restore with a small delay
-  setTimeout(restoreHighlights, 500);
-  
-  // Also try again after a longer delay in case the DOM is still changing
-  setTimeout(restoreHighlights, 1500);
+    // Try to add to head first (most reliable)
+    if (document.head) {
+      document.head.appendChild(style);
+      console.log("✅ Added highlight styles to head");
+    } 
+    // If no head, try body
+    else if (document.body) {
+      document.body.appendChild(style);
+      console.log("✅ Added highlight styles to body");
+    }
+    // Last resort - use document.documentElement
+    else {
+      document.documentElement.appendChild(style);
+      console.log("✅ Added highlight styles to document root");
+    }
+    
+    return true;
+  }
+  return false;
 }
 
-// Enhanced highlightText function to fix highlighting issues - now with fixed soft pink color
-function highlightSelectedText(color, highlightId) {
-  // Always use soft pink regardless of input
-  const softPinkColor = '#ffb6c1';
-  const selection = window.getSelection();
+// Add the styles as early as possible
+ensureHighlightStylesExist();
+
+// Improved force highlight function with multiple strategies
+function forceHighlightText(text, highlightId) {
+  console.log("🔴 FORCE HIGHLIGHTING:", text);
+  const lightGreenColor = '#90ee90';
   
-  // Check if there's a valid selection
-  if (!selection || !selection.rangeCount || selection.toString().trim() === '') {
-    console.error("No valid text selection found");
-    return { success: false, error: "No text selected" };
+  if (!text || typeof text !== 'string' || text.trim() === '') {
+    return { success: false, error: "Invalid text for force highlight" };
   }
   
-  try {
-    const range = selection.getRangeAt(0);
-    
-    // Check if range is in editable element - highlighting won't work there
-    if (isRangeInEditableElement(range)) {
-      return { success: false, error: "Cannot highlight text in form fields" };
-    }
-    
-    // Check if range spans multiple blocks - this can cause DOM exceptions
-    if (spansMultipleBlocks(range)) {
-      // We need to handle this differently by creating multiple highlights
-      return highlightMultipleBlocks(selection, softPinkColor, highlightId);
-    }
-    
-    // Create the highlight span
-    const highlightSpan = document.createElement('span');
-    highlightSpan.style.backgroundColor = softPinkColor; // Always use soft pink
-    highlightSpan.className = 'data-flowx-highlight';
-    highlightSpan.dataset.highlightId = highlightId || 'highlight-' + Date.now();
-    
-    // Try to surround contents with the span
+  // Ensure our styles exist
+  ensureHighlightStylesExist();
+  
+  // Ensure text is trimmed
+  const trimmedText = text.trim();
+  
+  // Try multiple highlighting strategies
+  // Strategy 1: Range-based highlighting (most precise)
+  let result = rangeBasedHighlight(trimmedText, highlightId);
+  if (result.success) {
+    console.log("✅ Range-based highlighting successful");
+    return result;
+  }
+  
+  // Strategy 2: Container-based highlighting (more robust for complex DOMs)
+  result = containerBasedHighlight(trimmedText, highlightId);
+  if (result.success) {
+    console.log("✅ Container-based highlighting successful");
+    return result;
+  }
+  
+  // Strategy 3: Document fragment highlighting (for complex cases)
+  result = fragmentBasedHighlight(trimmedText, highlightId);
+  if (result.success) {
+    console.log("✅ Fragment-based highlighting successful");
+    return result;
+  }
+  
+  // If all strategies fail
+  console.log("❌ All highlighting strategies failed");
+  return { success: false, error: "Text not found or couldn't be highlighted" };
+  
+  // Strategy 1: Range-based highlighting
+  function rangeBasedHighlight(text, id) {
     try {
-      range.surroundContents(highlightSpan);
+      console.log("Trying range-based highlighting...");
       
-      // Add click listener for removing the highlight
-      highlightSpan.addEventListener('click', function(event) {
-        if (event.ctrlKey || event.metaKey) {
-          const textNode = document.createTextNode(highlightSpan.textContent);
-          highlightSpan.parentNode.replaceChild(textNode, highlightSpan);
-          textNode.parentNode.normalize();
-          
-          chrome.runtime.sendMessage({
-            action: "removeHighlight",
-            highlightId: highlightSpan.dataset.highlightId
-          });
-        }
-      });
+      // Escape special characters for regex search
+      const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedText = escapeRegExp(text);
       
-      // Clear the selection
-      selection.removeAllRanges();
-      return { success: true, highlightId: highlightSpan.dataset.highlightId };
-    } catch (e) {
-      console.error("surroundContents failed:", e);
-      
-      // Alternative approach for complex DOM structures
-      return highlightWithTextNodes(range, color, highlightId);
-    }
-  } catch (error) {
-    console.error("Error in highlightSelectedText:", error);
-    return { success: false, error: error.message || "Unknown highlighting error" };
-  }
-}
-
-// Helper function to check if range is in an editable element
-function isRangeInEditableElement(range) {
-  const container = range.commonAncestorContainer;
-  const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
-  
-  const isEditable = element.closest('input, textarea, [contenteditable="true"]') !== null;
-  return isEditable;
-}
-
-// Helper function to check if range spans multiple block elements
-function spansMultipleBlocks(range) {
-  const startNode = range.startContainer;
-  const endNode = range.endContainer;
-  
-  if (startNode === endNode) return false;
-  
-  const blockTags = ['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TR', 'TABLE'];
-  const startBlock = getClosestBlockElement(startNode);
-  const endBlock = getClosestBlockElement(endNode);
-  
-  return startBlock !== endBlock;
-  
-  function getClosestBlockElement(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentElement;
-    }
-    
-    while (node && !blockTags.includes(node.tagName)) {
-      node = node.parentElement;
-    }
-    
-    return node;
-  }
-}
-
-// Helper function to highlight text when spans multiple blocks
-function highlightMultipleBlocks(selection, color, highlightId) {
-  const softPinkColor = '#ffb6c1'; // Always use soft pink
-  const baseId = highlightId || 'highlight-' + Date.now();
-  let success = false;
-  
-  try {
-    // Create a document fragment to hold our highlighted content
-    const fragment = document.createDocumentFragment();
-    
-    // Get all ranges in the selection
-    const range = selection.getRangeAt(0);
-    const contents = range.extractContents();
-    
-    // Process each node in the extracted content
-    Array.from(contents.childNodes).forEach((node, index) => {
-      const currentId = `${baseId}-${index}`;
-      
-      if (node.nodeType === Node.TEXT_NODE) {
-        // For text nodes, wrap them directly
-        const span = document.createElement('span');
-        span.style.backgroundColor = softPinkColor; // Always use soft pink
-        span.className = 'data-flowx-highlight';
-        span.dataset.highlightId = currentId;
-        span.textContent = node.textContent;
-        fragment.appendChild(span);
-      } else {
-        // For element nodes, process their text content
-        processElementNode(node, softPinkColor, currentId); // Always use soft pink
-        fragment.appendChild(node);
-      }
-    });
-    
-    // Insert the modified content back
-    range.insertNode(fragment);
-    success = true;
-    
-    // Clear selection
-    selection.removeAllRanges();
-    
-    return { success: true, highlightId: baseId };
-  } catch (error) {
-    console.error("Error in highlightMultipleBlocks:", error);
-    return { success: false, error: "Failed to highlight across multiple blocks" };
-  }
-  
-  // Helper function to process element nodes
-  function processElementNode(element, color, id) {
-    // Find all text nodes within the element
-    const textNodes = [];
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-    
-    let node;
-    while (node = walker.nextNode()) {
-      textNodes.push(node);
-    }
-    
-    // Process each text node
-    textNodes.forEach((textNode, i) => {
-      if (textNode.textContent.trim() !== "") {
-        const span = document.createElement('span');
-        span.style.backgroundColor = '#ffb6c1'; // Always use soft pink
-        span.className = 'data-flowx-highlight';
-        span.dataset.highlightId = `${id}-sub-${i}`;
-        span.textContent = textNode.textContent;
-        
-        // Replace the text node with our highlighted span
-        if (textNode.parentNode) {
-          textNode.parentNode.replaceChild(span, textNode);
-        }
-      }
-    });
-  }
-}
-
-// Alternative highlighting method for complex DOM structures
-function highlightWithTextNodes(range, color, highlightId) {
-  const softPinkColor = '#ffb6c1'; // Always use soft pink
-  const baseId = highlightId || 'highlight-' + Date.now();
-  try {
-    const text = range.toString();
-    const span = document.createElement('span');
-    span.style.backgroundColor = softPinkColor; // Always use soft pink
-    span.className = 'data-flowx-highlight';
-    span.dataset.highlightId = baseId;
-    span.textContent = text;
-    
-    // Clear the selected content
-    range.deleteContents();
-    
-    // Insert our highlighted span
-    range.insertNode(span);
-    
-    return { success: true, highlightId: baseId };
-  } catch (error) {
-    console.error("Error in alternative highlight method:", error);
-    return { success: false, error: "Failed to apply highlight alternative" };
-  }
-}
-
-// Listen for messages from the popup
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  try {
-    console.log("Content script received message:", request.action);
-    
-    // Simple ping-pong for checking if content script is loaded
-    if (request.action === "ping") {
-      console.log("Ping received in content script");
-      sendResponse({status: "ok", url: window.location.href});
-      return true;
-    }
-    else if (request.action === "restoreHighlights") {
-      console.log("Restore highlights message received on " + window.location.href);
-      // Restore highlights when explicitly requested
-      restoreHighlights();
-      sendResponse({status: "ok", source: "content.js"});
-      return true;
-    }
-    else if (request.action === "removeHighlightById") {
-      // Handle remote removal of a highlight by ID
-      const highlightId = request.highlightId;
-      if (highlightId) {
-        const highlightEl = document.querySelector(`[data-highlight-id="${highlightId}"]`);
-        if (highlightEl) {
-          const parent = highlightEl.parentNode;
-          // Move all children out of the highlight element
-          while (highlightEl.firstChild) {
-            parent.insertBefore(highlightEl.firstChild, highlightEl);
-          }
-          // Remove the empty highlight element
-          parent.removeChild(highlightEl);
-          sendResponse({success: true});
-        } else {
-          sendResponse({success: false, message: 'Highlight element not found'});
-        }
-      }
-      return true;
-    }
-    else if (request.action === "getSelectedText") {
-      try {
-        const selection = window.getSelection();
-        const selectedText = selection.toString().trim();
-        
-        // Check if there's actually text selected
-        if (selectedText) {
-          // For text that's already highlighted, check if it's in a highlight span
-          let isAlreadyHighlighted = false;
-          let existingHighlightColor = null;
-          
-          // Get the containing node
-          const range = selection.getRangeAt(0);
-          const container = range.commonAncestorContainer;
-          let highlightElement = null;
-          
-          // Check if selection is within a highlight
-          if (container.nodeType === Node.TEXT_NODE && container.parentNode) {
-            if (container.parentNode.classList && 
-                container.parentNode.classList.contains('data-flowx-highlight')) {
-              highlightElement = container.parentNode;
+      // Find all text nodes that contain our text
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: function(node) {
+            // Skip script, style tags and existing highlights
+            if (node.parentElement && 
+                (node.parentElement.tagName === 'SCRIPT' || 
+                 node.parentElement.tagName === 'STYLE' ||
+                 node.parentElement.tagName === 'NOSCRIPT' ||
+                 node.parentElement.className && 
+                 node.parentElement.className.includes('data-flowx-highlight'))) {
+              return NodeFilter.FILTER_REJECT;
             }
-          } else if (container.classList && 
-                     container.classList.contains('data-flowx-highlight')) {
-            highlightElement = container;
+            return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
           }
-          
-          if (highlightElement) {
-            isAlreadyHighlighted = true;
-            existingHighlightColor = highlightElement.style.backgroundColor;
-          }
-          
-          // Get position of selection for UI feedback
-          let position = null;
-          if (selection.rangeCount > 0) {
-            const rect = range.getBoundingClientRect();
-            position = {
-              top: rect.top + window.pageYOffset,
-              left: rect.left + window.pageXOffset
-            };
-          }
-          
-          // Get current page info
-          const pageUrl = window.location.href;
-          const pageTitle = document.title;
-          
-          // Send complete response with all necessary data
-          sendResponse({
-            selectedText: selectedText,
-            position: position,
-            pageUrl: pageUrl,
-            pageTitle: pageTitle,
-            isAlreadyHighlighted: isAlreadyHighlighted,
-            existingHighlightColor: existingHighlightColor
-          });
-        } else {
-          // No text selected
-          sendResponse({
-            selectedText: null,
-            error: "No text selected"
-          });
         }
-      } catch (error) {
-        console.error("Error getting selected text:", error);
-        sendResponse({
-          selectedText: null,
-          error: "Error processing selection: " + error.message
-        });
+      );
+      
+      // Collect matching nodes
+      const matchedNodes = [];
+      let currentNode;
+      while (currentNode = walker.nextNode()) {
+        matchedNodes.push(currentNode);
       }
       
-      return true; // Keep the messaging channel open for async response
-    } else if (request.action === "highlightText") {
-      console.log("Received highlight request");
-      const selection = window.getSelection();
+      // Sort by length (prefer shorter containers for more precise matches)
+      matchedNodes.sort((a, b) => a.textContent.length - b.textContent.length);
       
-      if (!selection || !selection.rangeCount || selection.toString().trim() === '') {
-        console.log("No valid selection found for highlighting");
-        sendResponse({
-          success: false,
-          error: "No text selected"
-        });
-        return true;
-      }
-      
-      // Generate a unique highlightId if not provided
-      const highlightId = request.highlightId || 'highlight-' + Date.now();
-      
-      // Always use soft pink color regardless of what was passed
-      const softPinkColor = '#ffb6c1';
-      
-      // Call the highlight function with soft pink color
-      const result = highlightSelectedText(softPinkColor, highlightId);
-      console.log("Highlight result:", result);
-      
-      // Send the result back to the popup
-      sendResponse(result);
-    } else if (request.action === "getImage") {
-      // Get image that's currently focused or under cursor
-      const images = document.querySelectorAll('img');
-      let imageUrl = null;
-      
-      // Just get the first large enough image as an example
-      for (let img of images) {
-        if (img.width > 100 && img.height > 100) {
-          imageUrl = img.src;
-          break;
+      // Try each node
+      for (const node of matchedNodes) {
+        try {
+          const index = node.textContent.indexOf(text);
+          if (index >= 0) {
+            const range = document.createRange();
+            range.setStart(node, index);
+            range.setEnd(node, index + text.length);
+            
+            // Create highlight span
+            const span = document.createElement('span');
+            span.className = 'data-flowx-highlight';
+            span.style.backgroundColor = lightGreenColor;
+            span.dataset.highlightId = id;
+            
+            // Try to surround with highlight
+            range.surroundContents(span);
+            
+            // Add click handler
+            span.addEventListener('click', function(e) {
+              if (e.ctrlKey || e.metaKey) {
+                const textNode = document.createTextNode(span.textContent);
+                span.parentNode.replaceChild(textNode, span);
+                textNode.parentNode.normalize();
+                
+                chrome.runtime.sendMessage({
+                  action: "removeHighlight",
+                  highlightId: id
+                });
+              }
+            });
+            
+            return { success: true, highlightId: id };
+          }
+        } catch (e) {
+          console.error("Error in range-based highlight:", e);
+          // Continue to next node
         }
       }
       
-      sendResponse({imageUrl: imageUrl});
-      return true; // Keep the messaging channel open
+      return { success: false, error: "Range-based highlight failed" };
+    } catch (error) {
+      console.error("Error in range-based highlighting:", error);
+      return { success: false, error: error.message };
     }
-  } catch (error) {
-    console.error('Error in message handler:', error);
-    sendResponse({success: false, error: error.message || "Unknown error"});
-    return true; // Keep the messaging channel open even for errors
   }
   
-  // Return true to indicate you wish to send a response asynchronously
-  return true;
-});
-
-// Add right-click context menu
-document.addEventListener('contextmenu', function(event) {
-  // Check if right-click is on a highlighted element
-  let target = event.target;
-  
-  // Find if the target or any parent is a highlight
-  while (target && target !== document.body) {
-    if (target.classList && target.classList.contains('data-flowx-highlight')) {
-      // Store the highlight element ID in a variable for later use
-      const highlightId = target.dataset.highlightId;
-      if (highlightId) {
-        chrome.runtime.sendMessage({
-          action: "contextMenuOnHighlight",
-          highlightId: highlightId
-        });
+  // Strategy 2: Container-based highlighting
+  function containerBasedHighlight(text, id) {
+    try {
+      console.log("Trying container-based highlighting...");
+      
+      // Escape for regex
+      const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedText = escapeRegExp(text);
+      
+      // Find suitable containers with our text
+      const containers = Array.from(document.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6, li, td, th'));
+      const matchingContainers = containers.filter(el => 
+        el.textContent.includes(text) && 
+        !el.classList.contains('data-flowx-highlight')
+      );
+      
+      // Sort by smallest container first
+      matchingContainers.sort((a, b) => a.textContent.length - b.textContent.length);
+      
+      // Try each container
+      for (const container of matchingContainers) {
+        try {
+          // Skip containers with very complex HTML or already highlighted content
+          if (container.querySelectorAll('.data-flowx-highlight').length > 0) continue;
+          
+          // Replace text with highlighted version
+          const originalHTML = container.innerHTML;
+          const newHTML = originalHTML.replace(
+            new RegExp(escapedText, 'g'),
+            `<span class="data-flowx-highlight" style="background-color: ${lightGreenColor};" data-highlight-id="${id}">${text}</span>`
+          );
+          
+          // Only apply if we made a change
+          if (newHTML !== originalHTML) {
+            container.innerHTML = newHTML;
+            
+            // Add click handlers to all highlights
+            container.querySelectorAll(`.data-flowx-highlight[data-highlight-id="${id}"]`).forEach(span => {
+              span.addEventListener('click', function(event) {
+                if (event.ctrlKey || event.metaKey) {
+                  const textNode = document.createTextNode(span.textContent);
+                  span.parentNode.replaceChild(textNode, span);
+                }
+              });
+            });
+            
+            return { success: true, highlightId: id };
+          }
+        } catch (e) {
+          console.error("Error in container-based highlight:", e);
+          // Continue to next container
+        }
       }
-      break;
+      
+      return { success: false, error: "Container-based highlight failed" };
+    } catch (error) {
+      console.error("Error in container-based highlighting:", error);
+      return { success: false, error: error.message };
     }
-    target = target.parentElement;
   }
-});
+  
+  // Strategy 3: Fragment-based highlighting for complex situations
+  function fragmentBasedHighlight(text, id) {
+    try {
+      console.log("Trying fragment-based highlighting...");
+      
+      // Create a temporary div to hold the entire document content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = document.body.innerHTML;
+      
+      // Find text in the temp div
+      const tempText = tempDiv.textContent;
+      const startIndex = tempText.indexOf(text);
+      
+      if (startIndex === -1) return { success: false, error: "Text not found in document" };
+      
+      // Mark found text with a unique ID
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = document.body.innerHTML;
+      
+      // Use DOMParser to create a document fragment
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(tempContainer.innerHTML, 'text/html');
+      
+      // Find all text nodes in the doc
+      const walker = document.createTreeWalker(
+        doc.body,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+      
+      // Collect text nodes
+      const textNodes = [];
+      let node;
+      while (node = walker.nextNode()) {
+        if (node.textContent.trim() !== '') {
+          textNodes.push(node);
+        }
+      }
+      
+      // Attempt to locate and highlight the exact node
+      for (const node of textNodes) {
+        const index = node.textContent.indexOf(text);
+        if (index !== -1) {
+          try {
+            // Create a wrapper element
+            const wrapper = document.createElement('span');
+            wrapper.className = 'data-flowx-highlight-wrapper';
+            
+            // Insert highlight directly into the actual document
+            // Find the corresponding node in the real document
+            const realTextNodes = [];
+            const realWalker = document.createTreeWalker(
+              document.body,
+              NodeFilter.SHOW_TEXT,
+              null,
+              false
+            );
+            
+            let realNode;
+            while (realNode = realWalker.nextNode()) {
+              if (realNode.textContent.trim() !== '') {
+                realTextNodes.push(realNode);
+              }
+            }
+            
+            // Find the node with matching text
+            const matchingNode = realTextNodes.find(n => n.textContent === node.textContent);
+            if (matchingNode) {
+              const range = document.createRange();
+              range.setStart(matchingNode, index);
+              range.setEnd(matchingNode, index + text.length);
+              
+              // Create highlight span
+              const span = document.createElement('span');
+              span.className = 'data-flowx-highlight';
+              span.style.backgroundColor = lightGreenColor;
+              span.dataset.highlightId = id;
+              
+              try {
+                range.surroundContents(span);
+                return { success: true, highlightId: id };
+              } catch (e) {
+                console.error("Failed to insert highlight:", e);
+              }
+            }
+          } catch (e) {
+            console.error("Error in fragment highlighting:", e);
+          }
+        }
+      }
+      
+      return { success: false, error: "Fragment-based highlight failed" };
+    } catch (error) {
+      console.error("Error in fragment-based highlighting:", error);
+      return { success: false, error: error.message };
+    }
+  }
+}
 
-// Improved function to restore highlights from storage
-function restoreHighlights() {
+// Add a MutationObserver to handle dynamically loaded content
+function setupMutationObserver() {
+  if (window._highlightObserver) return; // Don't set up multiple observers
+  
+  try {
+    console.log("Setting up highlight mutation observer");
+    const observer = new MutationObserver(function(mutations) {
+      // Look for significant DOM changes
+      let shouldReapplyStyles = false;
+      
+      for (const mutation of mutations) {
+        // If nodes were added
+        if (mutation.addedNodes.length > 0) {
+          for (const node of mutation.addedNodes) {
+            // Only consider element nodes
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              // If styles are removed, reapply them
+              if (!document.querySelector('#data-flowx-styles')) {
+                shouldReapplyStyles = true;
+              }
+              // If a significant part of DOM was added, check for highlight styles
+              if (node.querySelectorAll && node.querySelectorAll('*').length > 10) {
+                shouldReapplyStyles = true;
+              }
+            }
+          }
+        }
+        
+        // If styles or heads were modified
+        if (mutation.target.tagName === 'HEAD' || 
+            mutation.target.tagName === 'STYLE' ||
+            mutation.target.id === 'data-flowx-styles') {
+          shouldReapplyStyles = true;
+        }
+      }
+      
+      if (shouldReapplyStyles) {
+        ensureHighlightStylesExist();
+      }
+    });
+    
+    // Start observing
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+    
+    window._highlightObserver = observer;
+    console.log("Mutation observer for highlights established");
+  } catch (e) {
+    console.error("Error setting up mutation observer:", e);
+  }
+}
+
+// Run observer setup when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupMutationObserver);
+} else {
+  setupMutationObserver();
+}
+
+// Improved function to restore highlights from storage when page loads
+function restoreHighlightsOnPageLoad() {
   const currentUrl = window.location.href;
-  
-  console.log("Attempting to restore highlights for:", currentUrl);
+  console.log("🔄 Attempting to restore highlights for:", currentUrl);
   
   // Get saved highlights from storage
   chrome.storage.local.get(['savedItems'], function(result) {
-    const savedItems = result.savedItems || [];
+    if (!result || !result.savedItems || !result.savedItems.length) {
+      console.log("No saved items found in storage");
+      return;
+    }
     
-    // Filter highlights for this page - with more flexible URL matching
-    // We'll use hostname + pathname to match, ignoring query parameters
+    const savedItems = result.savedItems;
+    console.log(`Found ${savedItems.length} total saved items`);
+    
+    // Filter highlights for this page with more flexible URL matching
     const currentUrlObj = new URL(currentUrl);
     const urlToMatch = currentUrlObj.origin + currentUrlObj.pathname;
     
-    // Find highlights for this page, including traditional and new format
+    console.log("Looking for highlights matching URL base:", urlToMatch);
+    
+    // Find highlights for this page
     const pageHighlights = savedItems.filter(item => {
-      if (item.content && item.content.pageUrl) {
-        // Try to parse URL for comparison
-        try {
-          const storedUrlObj = new URL(item.content.pageUrl);
-          const storedUrlBase = storedUrlObj.origin + storedUrlObj.pathname;
-          
-          // Check if this is a highlight (either old or new format)
-          const isHighlight = 
-            item.type === 'highlight' || 
-            (item.type === 'text' && item.content.metadata && item.content.metadata.isHighlight);
-          
-          return isHighlight && storedUrlBase === urlToMatch;
-        } catch (e) {
-          // If URL parsing fails, fall back to exact match
-          return (item.type === 'highlight' || 
-                 (item.type === 'text' && item.content.metadata && item.content.metadata.isHighlight)) && 
-                 item.content.pageUrl === currentUrl;
+      // Skip items without content or pageUrl
+      if (!item || !item.content || !item.content.pageUrl) return false;
+      
+      try {
+        // Parse stored URL for comparison
+        const storedUrlObj = new URL(item.content.pageUrl);
+        const storedUrlBase = storedUrlObj.origin + storedUrlObj.pathname;
+        
+        // Check if this is a highlight
+        const isHighlight = 
+          item.type === 'text' || 
+          item.type === 'highlight' || 
+          (item.content.metadata && item.content.metadata.isHighlight) ||
+          item.content.wasHighlighted === true ||
+          !!item.content.highlightId;
+        
+        // Check if URL matches (ignoring query parameters)
+        const urlMatches = storedUrlBase === urlToMatch;
+        
+        if (isHighlight && urlMatches) {
+          console.log(`Found highlight to restore: "${item.content.text.substring(0, 30)}..."`);
+          return true;
         }
+        
+        return false;
+      } catch (e) {
+        console.error("Error parsing URL for highlight:", e);
+        // Fallback to exact URL match if parsing fails
+        return item.content.pageUrl === currentUrl;
       }
-      return false;
     });
     
     if (pageHighlights.length > 0) {
@@ -479,30 +527,29 @@ function restoreHighlights() {
       // Process each highlight with increasing delays to give DOM time to settle
       pageHighlights.forEach((highlight, index) => {
         // Use exponentially increasing delays for better reliability
-        const delay = 250 + (index * 150);
+        const delay = 500 + (index * 300);
         
         setTimeout(() => {
           try {
-            // Handle both old and new format highlights
-            if (highlight.type === 'highlight' && highlight.content.text && highlight.content.color) {
-              applyStoredHighlight(highlight);
-            } 
-            else if (highlight.type === 'text' && 
-                    highlight.content.metadata && 
-                    highlight.content.metadata.isHighlight &&
-                    highlight.content.text) {
-              // Handle new format highlights stored as text type with metadata
-              const newFormatHighlight = {
-                id: highlight.id,
-                content: {
-                  text: highlight.content.text,
-                  color: highlight.content.metadata.color || '#ffff00',
-                  highlightId: highlight.content.metadata.highlightId || highlight.id,
-                  pageUrl: highlight.content.pageUrl,
-                  pageTitle: highlight.content.pageTitle
-                }
-              };
-              applyStoredHighlight(newFormatHighlight);
+            console.log(`Restoring highlight ${index + 1}/${pageHighlights.length}`);
+            
+            // Ensure we have valid highlight data
+            if (!highlight.content || !highlight.content.text) {
+              console.error("Invalid highlight data", highlight);
+              return;
+            }
+            
+            const highlightId = highlight.id || highlight.content.highlightId || ('highlight-' + Date.now());
+            const text = highlight.content.text;
+            
+            // Try to highlight the text using our best method
+            console.log(`Attempting to restore highlight: "${text.substring(0, 30)}..."`);
+            const result = forceHighlightText(text, highlightId);
+            
+            if (result.success) {
+              console.log(`Successfully restored highlight ${index + 1}`);
+            } else {
+              console.log(`Failed to restore highlight ${index + 1}: ${result.error}`);
             }
           } catch (e) {
             console.error("Error restoring highlight:", e);
@@ -515,255 +562,134 @@ function restoreHighlights() {
   });
 }
 
-// Enhanced function to apply a stored highlight to the page
-function applyStoredHighlight(highlight) {
-  const text = highlight.content.text;
-  const color = highlight.content.color;
-  const highlightId = highlight.id;
+// Setup delayed restoration attempts for when page loads
+function setupRestorationOnLoad() {
+  console.log("Setting up highlight restoration for page load");
   
-  if (!text || text.length === 0) {
-    console.log("Empty highlight text, skipping");
-    return;
-  }
-  
-  console.log(`Restoring highlight: "${text.substring(0, 20)}..."`, highlightId);
-  
-  // Find all text nodes in the document
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    { acceptNode: node => {
-        // Skip very short text nodes and nodes in script/style tags
-        if (node.textContent.length < 2) return NodeFilter.FILTER_REJECT;
-        if (node.parentElement && 
-            (node.parentElement.tagName === 'SCRIPT' || 
-             node.parentElement.tagName === 'STYLE' ||
-             node.parentElement.tagName === 'NOSCRIPT' ||
-             node.parentElement.className.includes('data-flowx-highlight'))) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      }
-    }
-  );
-  
-  // Process each matching text node
-  let node;
-  let found = false;
-  const matchedNodes = [];
-  
-  // Collect all matching nodes first
-  while (node = walker.nextNode()) {
-    matchedNodes.push(node);
-  }
-  
-  // Sort matched nodes by how closely they match the highlight text
-  // This helps prioritize exact matches
-  matchedNodes.sort((a, b) => {
-    const aMatch = a.textContent.indexOf(text);
-    const bMatch = b.textContent.indexOf(text);
-    
-    // If both contain an exact match, prefer the shorter node (more precise context)
-    if (aMatch !== -1 && bMatch !== -1) {
-      return a.textContent.length - b.textContent.length;
-    }
-    
-    // Otherwise prefer nodes that contain the text
-    return aMatch - bMatch;
-  });
-  
-  // Try to restore highlight to each matching node until successful
-  for (const node of matchedNodes) {
-    const content = node.textContent;
-    const index = content.indexOf(text);
-    
-    if (index >= 0) {
-      // Create a range for the matching text
-      const range = document.createRange();
-      range.setStart(node, index);
-      range.setEnd(node, index + text.length);
-      
-      // Create highlight span with soft pink color
-      const highlightSpan = document.createElement('span');
-      highlightSpan.className = 'data-flowx-highlight';
-      highlightSpan.style.backgroundColor = '#ffb6c1'; // Always use soft pink regardless of stored color
-      highlightSpan.style.display = 'inline';
-      highlightSpan.dataset.highlightId = highlightId;
-      highlightSpan.dataset.timestamp = highlight.content.timestamp || new Date().toISOString();
-      
-      // Apply the highlight
-      try {
-        range.surroundContents(highlightSpan);
-        
-        // Make the highlight removable by clicking on it with Ctrl/Cmd
-        highlightSpan.addEventListener('click', function(e) {
-          if (e.ctrlKey || e.metaKey) {
-            // Remove highlight if Ctrl/Cmd is pressed while clicking
-            removeHighlight(highlightSpan, highlightId);
-          }
-        });
-        
-        // Add right-click context menu for this highlight
-        highlightSpan.addEventListener('contextmenu', function(e) {
-          chrome.runtime.sendMessage({
-            action: "contextMenuOnHighlight",
-            highlightId: highlightId
-          });
-        });
-        
-        found = true;
-        console.log(`Successfully restored highlight: "${text.substring(0, 20)}..."`);
-        break; // Stop after first successful highlight
-      } catch (e) {
-        console.error('Error applying stored highlight:', e);
-        // Continue trying with other matching nodes
-      }
-    }
-  }
-  
-  if (!found) {
-    console.log(`Could not find exact text to highlight: "${text.substring(0, 20)}..." - DOM may have changed`);
-    
-    // Optional: Try fuzzy matching or partial highlighting if exact match fails
-    tryFuzzyHighlightMatch(text, color, highlightId);
-  }
-}
-
-// Helper function to attempt fuzzy matching for highlights
-function tryFuzzyHighlightMatch(text, color, highlightId) {
-  // Only try fuzzy matching for longer text that's worth the effort
-  if (text.length < 20) return false;
-  
-  // Try to find a paragraph that contains most of the words
-  const words = text.split(/\s+/).filter(w => w.length > 3);
-  if (words.length < 3) return false;
-  
-  // Look for paragraphs containing at least 2/3 of the significant words
-  const paragraphs = document.querySelectorAll('p');
-  let bestMatch = null;
-  let maxScore = 0;
-  
-  paragraphs.forEach(p => {
-    if (p.textContent.length < text.length * 0.5) return; // Skip very short paragraphs
-    
-    let score = 0;
-    words.forEach(word => {
-      if (p.textContent.includes(word)) score++;
+  // First try: When DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log("DOM content loaded - attempting first highlight restoration");
+      setTimeout(restoreHighlightsOnPageLoad, 500);
     });
-    
-    const matchRatio = score / words.length;
-    if (matchRatio > 0.5 && matchRatio > maxScore) {
-      maxScore = matchRatio;
-      bestMatch = p;
-    }
-  });
-  
-  if (bestMatch) {
-    console.log(`Found fuzzy match with score ${maxScore.toFixed(2)} for highlight`);
-    
-    // Create highlight span with soft pink
-    const span = document.createElement('span');
-    span.className = 'data-flowx-highlight fuzzy-match';
-    span.style.backgroundColor = '#ffb6c1'; // Always use soft pink
-    span.dataset.highlightId = highlightId;
-    span.dataset.originalText = text;
-    span.title = "This highlight was approximately matched - text may have changed";
-    
-    // Try to highlight just the matching portion
-    const textContent = bestMatch.textContent;
-    let startPos = 0;
-    let endPos = textContent.length;
-    
-    // Try to find a substring that contains most of the words
-    for (let i = 0; i < words.length; i++) {
-      const wordPos = textContent.indexOf(words[i]);
-      if (wordPos !== -1) {
-        startPos = Math.max(0, wordPos - 20);
-        break;
-      }
-    }
-    
-    for (let i = words.length - 1; i >= 0; i--) {
-      const wordPos = textContent.lastIndexOf(words[i]);
-      if (wordPos !== -1) {
-        endPos = Math.min(textContent.length, wordPos + words[i].length + 20);
-        break;
-      }
-    }
-    
-    // Create a text node walker to find the right nodes to highlight
-    const walker = document.createTreeWalker(
-      bestMatch,
-      NodeFilter.SHOW_TEXT,
-      null,
-      false
-    );
-    
-    let node;
-    let currentPos = 0;
-    let found = false;
-    
-    while (node = walker.nextNode()) {
-      const nodeLength = node.textContent.length;
-      
-      // Check if this node contains our target range
-      if (currentPos + nodeLength > startPos && currentPos < endPos) {
-        // This node contains part of our highlight
-        const nodeStartPos = Math.max(0, startPos - currentPos);
-        const nodeEndPos = Math.min(nodeLength, endPos - currentPos);
-        
-        if (nodeStartPos < nodeEndPos) {
-          const range = document.createRange();
-          range.setStart(node, nodeStartPos);
-          range.setEnd(node, nodeEndPos);
-          
-          try {
-            const highlightSpan = span.cloneNode(true);
-            range.surroundContents(highlightSpan);
-            
-            // Make the highlight removable
-            highlightSpan.addEventListener('click', function(e) {
-              if (e.ctrlKey || e.metaKey) {
-                removeHighlight(highlightSpan, highlightId);
-              }
-            });
-            
-            found = true;
-          } catch (e) {
-            console.error('Error applying fuzzy highlight:', e);
-          }
-        }
-      }
-      
-      currentPos += nodeLength;
-    }
-    
-    return found;
+  } else {
+    // DOM is already loaded
+    setTimeout(restoreHighlightsOnPageLoad, 500);
   }
   
-  return false;
+  // Second try: When page is fully loaded
+  window.addEventListener('load', function() {
+    console.log("Window fully loaded - attempting second highlight restoration");
+    setTimeout(restoreHighlightsOnPageLoad, 1000);
+  });
+  
+  // Third try: After a longer delay for dynamic content
+  setTimeout(function() {
+    console.log("Delayed restoration - final attempt");
+    restoreHighlightsOnPageLoad();
+  }, 3000);
 }
 
-// Helper function to remove a highlight
-function removeHighlight(highlightSpan, highlightId) {
-  const parent = highlightSpan.parentNode;
-  
-  // Move all children out of the highlight element
-  while (highlightSpan.firstChild) {
-    parent.insertBefore(highlightSpan.firstChild, highlightSpan);
+// Run the restoration setup immediately
+setupRestorationOnLoad();
+
+// Listen for messages from background script and popup
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  try {
+    console.log("Content script received message at " + new Date().toISOString() + ":", request.action, request);
+    
+    // Handle find and highlight text request
+    if (request.action === "findAndHighlightText") {
+      console.log("DIRECT HIGHLIGHT REQUEST for text:", request.text);
+      
+      if (!request.text || request.text.trim() === '') {
+        console.log("Empty text provided for direct highlighting");
+        sendResponse({
+          success: false,
+          error: "No text provided"
+        });
+        return true;
+      }
+      
+      // Always use forceHighlightText which is the most reliable method
+      const result = forceHighlightText(request.text, request.highlightId || 'highlight-' + Date.now());
+      sendResponse(result);
+      return true;
+    }
+    
+    // Handle highlight selected text action
+    else if (request.action === "highlightSelectedText") {
+      console.log("HIGHLIGHT REQUEST:", request);
+      console.log("Selection text from request:", request.selectionText);
+      
+      // If we have selectionText, use it directly with our force method
+      if (request.selectionText) {
+        console.log("Using direct text highlighting with:", request.selectionText);
+        const highlightId = request.highlightId || 'highlight-' + Date.now();
+        const result = forceHighlightText(request.selectionText, highlightId);
+        sendResponse(result);
+      } else {
+        // Try with current selection as fallback
+        const selection = window.getSelection();
+        if (selection && selection.toString().trim() !== '') {
+          const selectedText = selection.toString().trim();
+          console.log("Using current window selection:", selectedText);
+          const highlightId = request.highlightId || 'highlight-' + Date.now();
+          const result = forceHighlightText(selectedText, highlightId);
+          sendResponse(result);
+        } else {
+          sendResponse({ success: false, error: "No text selected" });
+        }
+      }
+      return true;
+    }
+    
+    // Add explicit handler for restore highlights action
+    else if (request.action === "restoreHighlights") {
+      console.log("Received explicit request to restore highlights");
+      restoreHighlightsOnPageLoad();
+      sendResponse({success: true});
+      return true;
+    }
+    
+    // Handle other messages...
+    // ... existing code ...
+
+  } catch (error) {
+    console.error('Error in message handler:', error);
+    sendResponse({success: false, error: error.message || "Unknown error"});
+    return true;
   }
   
-  // Remove the empty highlight element
-  parent.removeChild(highlightSpan);
-  
-  // Merge adjacent text nodes
-  parent.normalize();
-  
-  // Notify background script to remove from storage
-  chrome.runtime.sendMessage({
-    action: "removeHighlight",
-    highlightId: highlightId
-  });
-  
-  console.log('Highlight removed:', highlightId);
-}
+  // Return true to indicate you wish to send a response asynchronously
+  return true;
+});
+
+// IMPORTANT: Notify that content script is fully loaded and ready
+console.log("✅ Content script fully loaded for: " + window.location.href);
+chrome.runtime.sendMessage({
+  action: "contentScriptReady", 
+  url: window.location.href,
+  timestamp: new Date().toISOString()
+});
+
+// Add a visible indicator that the extension is active (helps with debugging)
+setTimeout(() => {
+  try {
+    const indicator = document.createElement('div');
+    indicator.textContent = '🟢';
+    indicator.title = 'Highlight Extension Active';
+    indicator.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:10000;opacity:0.7;font-size:18px;';
+    document.body.appendChild(indicator);
+    
+    // Make it fade out after 5 seconds
+    setTimeout(() => {
+      indicator.style.transition = 'opacity 1s';
+      indicator.style.opacity = '0';
+      // Remove after fade out
+      setTimeout(() => indicator.remove(), 1000);
+    }, 5000);
+  } catch (e) {
+    // Ignore errors
+  }
+}, 1000);

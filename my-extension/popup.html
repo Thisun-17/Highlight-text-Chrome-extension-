@@ -1,64 +1,309 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Data FlowX</title>
+  <title>Bookmark</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme-styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>    .container {
+      width: 380px;
+      max-width: 100%;
+      padding: 0;
+      background-color: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .close-button {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      font-size: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #555;
+      z-index: 10;
+    }
+    
+    .share-button {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #555;
+      z-index: 10;
+    }
+    
+    .popup-content {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      padding: 20px;
+    }
+    
+    .popup-description {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #333;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }    
+    
+    /* Enhanced styling for the selected text field */
+    .selected-text-input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #4a90e2;
+      border-radius: 8px;
+      min-height: 80px;
+      resize: none;
+      font-family: inherit;
+      margin-bottom: 16px;
+      font-size: 15px;
+      background-color: #f8faff;
+      color: #333;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+    }
+    
+    .selected-text-input:focus {
+      border-color: #3a7ad9;
+      outline: none;
+      box-shadow: 0 3px 8px rgba(74, 144, 226, 0.2);
+    }
+    
+    .selected-text-input::placeholder {
+      color: #a0a0a0;
+      font-style: italic;
+    }
+    
+    /* Style for when text is selected */
+    .selected-text-input:not(:placeholder-shown) {
+      background-color: #fff;
+      border-left: 4px solid #4a90e2;
+    }
+    
+    .note-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      min-height: 60px;
+      resize: none;
+      font-family: inherit;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+    
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+      .control-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background-color: #fff;
+      border: 1px solid #eee;
+      border-radius: 30px;
+      padding: 8px 15px;
+      font-size: 13px;
+      width: 48%;
+      cursor: pointer;
+      color: #555;
+      transition: background-color 0.2s;
+    }
+    
+    .control-button:hover {
+      background-color: #f5f5f5;
+    }
+      .primary-btn {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 500;
+      width: 100%;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .primary-btn:hover {
+      background-color: #3a7ad9;
+    }
+    
+    /* Secondary button style for View Library */
+    .secondary-btn {
+      background-color: #f8faff;
+      color: #4a90e2;
+      border: 1px solid #4a90e2;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      width: 100%;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .secondary-btn:hover {
+      background-color: #edf3fe;
+    }
+    
+    .secondary-btn i {
+      font-size: 16px;
+    }
+    
+    /* Button container for primary and secondary buttons */
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .search-box {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+    
+    /* Debug section styles */
+    .debug-section {
+      margin-top: 20px;
+      font-size: 12px;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 8px;
+      display: none;
+    }
+    
+    .debug-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    
+    .debug-content {
+      max-height: 100px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .manual-capture-btn {
+      margin-top: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    /* Text highlight indicator */
+    .highlight-indicator {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      color: #4a90e2;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    .highlight-indicator i {
+      margin-right: 6px;
+    }
+  </style>
 </head>
-<body>  <div class="container">
-    <header>
-      <h1><i class="fas fa-bookmark"></i> Data FlowX</h1>
-    </header>
-      <nav class="tab-navigation">
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="view">
-          <i class="fas fa-eye"></i> View Saved
-        </button>
-        <button class="tab-btn" data-tab="notes">
-          <i class="fas fa-edit"></i> Notes
-        </button>
-      </div>
-    </nav>
-      <main>
-      <div id="view-tab" class="tab-content active">
-        <section class="content-section center-content">
-          <h2 class="section-title">Saved Content</h2>
-          <p class="description">Access all your saved highlights, texts, and media</p>
-          <button id="savedItems" class="primary-button full-width">
-            <i class="fas fa-list"></i> View All Saved Items
-          </button>
-        </section>
+<body>
+  <div class="container">
+    <button class="close-button">✕</button>
+    <button class="share-button"><i class="fas fa-share-alt"></i></button>
+    
+    <div class="popup-content">
+      <div class="highlight-indicator">
+        <i class="fas fa-highlighter"></i> Selected Text
       </div>
       
-      <div id="notes-tab" class="tab-content">
-        <section class="content-section">
-          <div class="notes-header">
-            <h2 class="section-title">Quick Notes</h2>
-            <div class="text-color-controls">
-              <input type="color" id="textColorPicker" value="#fefefe" title="Change text color">
-            </div>
-          </div>
-          
-          <textarea id="notesInput" placeholder="Type your notes here..." class="notes-textarea"></textarea>
-          
-          <div class="button-grid">
-            <button id="saveNotes" class="primary-button">
-              <i class="fas fa-save"></i> Save Notes
-            </button>
-            <button id="clearNotes" class="secondary-button">
-              <i class="fas fa-trash-alt"></i> Clear
-            </button>
-          </div>
-        </section>
+      <div class="input-group">
+        <textarea class="selected-text-input" placeholder="Your highlighted text will appear here" readonly></textarea>
       </div>
-    </main>
-    
-    <footer>
-      <div id="status" class="status-area"></div>
-    </footer>
+      
+      <div class="input-group">
+        <textarea class="note-input" placeholder="Add a note"></textarea>
+      </div>
+      
+      <div class="search-box">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="search-input" placeholder="Add to collections">
+      </div>
+      
+      <div class="controls-row">
+        <button class="control-button">
+          <i class="far fa-star"></i> Favorites
+        </button>
+        <button class="control-button">
+          <i class="fas fa-lock"></i> Private
+        </button>
+      </div>
+      
+      <div class="button-container">
+        <button class="primary-btn" id="addToLibrary">Add to my library</button>
+        <button class="secondary-btn" id="viewLibrary">
+          <i class="fas fa-book-open"></i> View Library
+        </button>
+      </div>
+      
+      <!-- Debug section -->
+      <div class="debug-section">
+        <div class="debug-title" id="toggleDebug">Debug Info (Click to Toggle)</div>
+        <div class="debug-content" id="debugContent"></div>
+        <button class="manual-capture-btn" id="manualCapture">Manually Capture Selection</button>
+      </div>
+    </div>
   </div>
-    <script src="content-storage.js" type="text/javascript"></script>
+  
+  <script src="content-storage.js" type="text/javascript"></script>
   <script src="popup.js" type="text/javascript"></script>
 </body>
 </html>

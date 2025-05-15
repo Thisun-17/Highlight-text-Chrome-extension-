@@ -145,24 +145,31 @@ function createItemCard(item) {
   
   // Create text paragraph
   const textElement = document.createElement('p');
-    // Apply special styling for highlights
+  
+  // Apply special styling for different types of content
   if (item.type === 'highlight' || item.isHighlight) {
     textElement.className = 'highlight-text';
     textElement.style.backgroundColor = 'var(--highlight-bg)';
     card.dataset.isHighlight = "true";
   }
+  else if (item.type === 'article') {
+    textElement.className = 'article-text';
+    card.classList.add('article-card');
+  }
   
   textElement.textContent = item.text;
   cardContent.appendChild(textElement);
-  
-  // Add source information if available
-  if (item.pageUrl && item.pageTitle) {
+    // Add source information if available
+  if ((item.pageUrl || item.url) && (item.pageTitle || item.title)) {
     const sourceElement = document.createElement('div');
     sourceElement.className = 'source';
     
+    // Get the appropriate URL
+    const url = item.pageUrl || item.url;
+    
     // Try to add favicon
     try {
-      const faviconUrl = new URL(item.pageUrl);
+      const faviconUrl = new URL(url);
       const faviconImg = document.createElement('img');
       faviconImg.src = `https://www.google.com/s2/favicons?domain=${faviconUrl.hostname}`;
       faviconImg.className = 'favicon';
@@ -176,10 +183,13 @@ function createItemCard(item) {
     if (item.type === 'highlight' || item.isHighlight) {
       sourceElement.appendChild(document.createTextNode('Highlighted from: '));
     }
+    else if (item.type === 'article') {
+      sourceElement.appendChild(document.createTextNode('Article: '));
+    }
     
     const sourceLink = document.createElement('a');
-    sourceLink.href = item.pageUrl;
-    sourceLink.textContent = item.pageTitle;
+    sourceLink.href = url;
+    sourceLink.textContent = item.title || item.pageTitle;
     sourceLink.target = '_blank';
     
     sourceElement.appendChild(sourceLink);

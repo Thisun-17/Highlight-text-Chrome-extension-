@@ -14,7 +14,7 @@
   --filter-text-inactive: #666;
   --card-shadow: 0 1px 2px rgba(0,0,0,0.08);
   --card-border: 1px solid rgba(0,0,0,0.05);
-  --highlight-bg: #ffb6c1; /* Soft pink default highlight color */
+  --highlight-bg: #90EE90; /* Light green default highlight color */
   --button-primary-bg: #3a8eff;
   --button-primary-text: #fff;
   --button-secondary-bg: #f2f2f2;
@@ -35,10 +35,9 @@ html[data-theme="dark"] {
   --filter-active-bg: #2e4324;
   --filter-inactive-bg: transparent;
   --filter-text-active: #fff;
-  --filter-text-inactive: #999;
-  --card-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  --filter-text-inactive: #999;  --card-shadow: 0 1px 2px rgba(0,0,0,0.2);
   --card-border: 1px solid rgba(255,255,255,0.05);
-  --highlight-bg: rgba(255, 182, 193, 0.3); /* Softer pink for dark mode */
+  --highlight-bg: #90EE90; /* Light green for dark mode too - keeping it consistent */
   --button-primary-bg: #2d6fc9;
   --button-primary-text: #fff;
   --button-secondary-bg: #333;
