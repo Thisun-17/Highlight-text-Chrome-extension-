@@ -1,7 +1,5 @@
 // Code for handling saved items display
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded - initializing saved items view');
-  
   // Fix existing items with invalid dates
   fixStoredDates();
   
@@ -16,24 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Set up filter functionality
   setupFilters();
-  
-  // Add global click handler for delete buttons
-  document.addEventListener('click', function(e) {
-    const target = e.target.closest('.card-delete-btn');
-    if (target) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const id = target.getAttribute('data-id');
-      const type = target.getAttribute('data-type');
-      
-      console.log(`Delete button clicked for item: ${id} (${type})`);
-      
-      if (confirm('Are you sure you want to delete this item?')) {
-        deleteItemFromStorage(id, type);
-      }
-    }
-  });
 });
 
 // Setup filter buttons functionality
@@ -108,20 +88,13 @@ function fixStoredDates() {
 
 // Function to load and display all saved items
 function loadSavedItems() {
-  console.log('Loading saved items...');
-  
   const container = document.getElementById('items-container');
-  if (!container) {
-    console.error('Container not found!');
-    return;
-  }
   
   // Clear the container first
   container.innerHTML = '';
   
-  // Use our unified function to load all content
+  // Use our new unified function to load all content
   loadAllSavedContent().then(allItems => {
-    console.log(`Found ${allItems.length} items to display`);
     
     // Update Delete All button state
     const deleteAllBtn = document.getElementById('delete-all-btn');
@@ -134,8 +107,7 @@ function loadSavedItems() {
         deleteAllBtn.classList.remove('disabled');
       }
     }
-    
-    if (allItems.length === 0) {
+      if (allItems.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.className = 'empty-state';
       emptyState.textContent = 'No saved items yet';
@@ -145,83 +117,160 @@ function loadSavedItems() {
     
     // Display items in order (already sorted by timestamp)
     allItems.forEach(function(item, index) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.dataset.id = item.id;
-      card.dataset.type = item.type || 'text';
+      const itemElement = createItemCard(item);
+      container.appendChild(itemElement);
       
-      if (item.isHighlight || item.type === 'highlight') {
-        card.dataset.isHighlight = "true";
-      }
+      // Add event listener to the delete button for this card
+      const deleteBtn = itemElement.querySelector('.delete-btn');
+      console.log('Delete button for item', item.id, ':', deleteBtn);
       
-      // Add HTML content
-      card.innerHTML = `
-        <div class="card-header">
-          <button class="card-delete-btn" data-id="${item.id}" data-type="${item.type || 'text'}">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-        <div class="card-content">
-          <p class="${(item.isHighlight || item.type === 'highlight') ? 'highlight-text' : ''}">
-            ${item.text}
-          </p>
-          ${(item.notes || (item.content && item.content.notes)) ? 
-            `<div class="item-notes">
-              <span class="notes-label">Note: </span>
-              <span class="notes-content">${item.notes || item.content.notes}</span>
-            </div>` : 
-            ''
+      if (deleteBtn) {
+        // Add direct click handler to delete button
+        deleteBtn.onclick = function(e) {
+          console.log('Delete button clicked for item:', item.id);
+          e.stopPropagation();
+          
+          if (confirm('Are you sure you want to delete this item?')) {
+            deleteItem(item.id, item.type);
           }
-          ${(item.pageUrl || item.url) && (item.pageTitle || item.title) ? 
-            `<div class="source">
-              ${(item.isHighlight || item.type === 'highlight') ? 'Highlighted from: ' : ''}
-              <a href="${item.pageUrl || item.url}" target="_blank">
-                ${item.pageTitle || item.title}
-              </a>
-            </div>` : 
-            ''
-          }
-        </div>
-      `;
-      
-      // Apply highlight styling if needed
-      if (item.isHighlight || item.type === 'highlight') {
-        const highlightText = card.querySelector('p');
-        if (highlightText) {
-          highlightText.style.backgroundColor = 'var(--highlight-bg)';
-        }
+        };
       }
-      
-      container.appendChild(card);
     });
-  }).catch(error => {
-    console.error('Error loading saved content:', error);
-    
-    // Show error message
-    const errorMsg = document.createElement('div');
-    errorMsg.className = 'empty-state error';
-    errorMsg.textContent = 'Error loading saved items. Please try again.';
-    container.appendChild(errorMsg);
   });
 }
 
-// Direct function to delete an item from storage
-function deleteItemFromStorage(id, type) {
-  console.log(`Deleting item ${id} of type ${type} from storage`);
+// Function to create a card for displaying an item
+function createItemCard(item) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = item.id;
+  card.dataset.type = item.type;
   
-  // Based on the item type and id, determine which storage to update
+  // Create content section
+  const cardContent = document.createElement('div');
+  cardContent.className = 'card-content';
+  
+  // Create text paragraph
+  const textElement = document.createElement('p');
+  
+  // Apply special styling for different types of content
+  if (item.type === 'highlight' || item.isHighlight) {
+    textElement.className = 'highlight-text';
+    textElement.style.backgroundColor = 'var(--highlight-bg)';
+    card.dataset.isHighlight = "true";
+  }
+  else if (item.type === 'article') {
+    textElement.className = 'article-text';
+    card.classList.add('article-card');
+  }
+  
+  textElement.textContent = item.text;
+  cardContent.appendChild(textElement);
+  
+  // Add notes if available
+  if (item.notes || (item.content && item.content.notes)) {
+    const notesText = item.notes || item.content.notes;
+    if (notesText && notesText.trim() !== '') {
+      const notesElement = document.createElement('div');
+      notesElement.className = 'item-notes';
+      
+      const notesLabel = document.createElement('span');
+      notesLabel.className = 'notes-label';
+      notesLabel.textContent = 'Note: ';
+      
+      const notesContent = document.createElement('span');
+      notesContent.className = 'notes-content';
+      notesContent.textContent = notesText;
+      
+      notesElement.appendChild(notesLabel);
+      notesElement.appendChild(notesContent);
+      cardContent.appendChild(notesElement);
+    }
+  }
+  
+  // Add source information if available
+  if ((item.pageUrl || item.url) && (item.pageTitle || item.title)) {
+    const sourceElement = document.createElement('div');
+    sourceElement.className = 'source';
+    
+    // Get the appropriate URL
+    const url = item.pageUrl || item.url;
+    
+    // Try to add favicon
+    try {
+      const faviconUrl = new URL(url);
+      const faviconImg = document.createElement('img');
+      faviconImg.src = `https://www.google.com/s2/favicons?domain=${faviconUrl.hostname}`;
+      faviconImg.className = 'favicon';
+      faviconImg.alt = '';
+      sourceElement.appendChild(faviconImg);
+      sourceElement.appendChild(document.createTextNode(' '));
+    } catch (e) {
+      console.log('Could not add favicon');
+    }
+    
+    if (item.type === 'highlight' || item.isHighlight) {
+      sourceElement.appendChild(document.createTextNode('Highlighted from: '));
+    }
+    else if (item.type === 'article') {
+      sourceElement.appendChild(document.createTextNode('Article: '));
+    }
+    
+    const sourceLink = document.createElement('a');
+    sourceLink.href = url;
+    sourceLink.textContent = item.title || item.pageTitle;
+    sourceLink.target = '_blank';
+    
+    sourceElement.appendChild(sourceLink);
+    cardContent.appendChild(sourceElement);
+  }
+  
+  card.appendChild(cardContent);
+  
+  // Create a simple delete button
+  const deleteButton = document.createElement('button');
+  deleteButton.className = 'delete-btn';
+  deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete';
+  deleteButton.style.backgroundColor = '#e74c3c';
+  deleteButton.style.color = 'white';
+  deleteButton.style.border = 'none';
+  deleteButton.style.padding = '5px 10px';
+  deleteButton.style.borderRadius = '4px';
+  deleteButton.style.cursor = 'pointer';
+  deleteButton.style.marginTop = '10px';
+  deleteButton.style.float = 'right';
+  deleteButton.dataset.id = item.id;
+  
+  // Add inline click handler to ensure it works
+  deleteButton.onclick = function(e) {
+    e.stopPropagation();
+    console.log('Delete button clicked inline for item:', item.id);
+    
+    if (confirm('Are you sure you want to delete this item?')) {
+      deleteItem(item.id, item.type);
+    }
+  };
+  
+  // Append the delete button directly to the card
+  card.appendChild(deleteButton);
+  
+  return card;
+}
+
+// Function to delete an item
+function deleteItem(id, type) {
+  console.log('Delete item called with ID:', id, 'and type:', type);
+  
+  // Use a simpler approach - delete directly from storage
+  // Handle different storage types
   if (type === 'highlight') {
     chrome.storage.local.get(['savedHighlights'], function(result) {
       const items = result.savedHighlights || [];
       const newItems = items.filter(item => item.id !== id);
       chrome.storage.local.set({savedHighlights: newItems}, function() {
-        console.log(`Item ${id} deleted from savedHighlights`);
-        
-        // Show a notification
-        showNotification('Item deleted successfully', 'success');
-        
-        // Reload the items list
-        loadSavedItems(); 
+        console.log('Item deleted from savedHighlights:', id);
+        // Reload the items to refresh the view
+        loadSavedItems();
       });
     });
   } else if (type === 'text') {
@@ -229,12 +278,8 @@ function deleteItemFromStorage(id, type) {
       const items = result.savedTextItems || [];
       const newItems = items.filter(item => item.id !== id);
       chrome.storage.local.set({savedTextItems: newItems}, function() {
-        console.log(`Item ${id} deleted from savedTextItems`);
-        
-        // Show a notification
-        showNotification('Item deleted successfully', 'success');
-        
-        // Reload the items list
+        console.log('Item deleted from savedTextItems:', id);
+        // Reload the items to refresh the view
         loadSavedItems();
       });
     });
@@ -244,12 +289,8 @@ function deleteItemFromStorage(id, type) {
       const items = result.savedItems || [];
       const newItems = items.filter(item => item.id !== id);
       chrome.storage.local.set({savedItems: newItems}, function() {
-        console.log(`Item ${id} deleted from savedItems`);
-        
-        // Show a notification
-        showNotification('Item deleted successfully', 'success');
-        
-        // Reload the items list
+        console.log('Item deleted from savedItems:', id);
+        // Reload the items to refresh the view
         loadSavedItems();
       });
     });
@@ -266,7 +307,10 @@ function deleteAllItems() {
     deleteAllBtn.disabled = true;
     
     // Create and show a temporary notification
-    showNotification('Deleting all items...', 'info');
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = 'Deleting all items...';
+    document.body.appendChild(notification);
     
     // Delete all items from all storage types
     const clearOperations = [
@@ -283,27 +327,19 @@ function deleteAllItems() {
         deleteAllBtn.textContent = originalText;
         
         // Update notification
-        showNotification('All highlights and saved text deleted!', 'success');
+        notification.textContent = 'All highlights and saved text deleted!';
+        notification.classList.add('success');
+        
+        // Remove notification after 3 seconds
+        setTimeout(function() {
+          notification.classList.add('fade-out');
+          setTimeout(function() {
+            if (notification.parentNode) {
+              notification.parentNode.removeChild(notification);
+            }
+          }, 300);
+        }, 2000);
       }, 500); // Small delay for visual feedback
     });
   }
-}
-
-// Helper function to show notifications
-function showNotification(message, type = '') {
-  const notification = document.createElement('div');
-  notification.className = 'notification';
-  if (type) notification.classList.add(type);
-  notification.textContent = message;
-  document.body.appendChild(notification);
-  
-  // Remove notification after 2 seconds
-  setTimeout(function() {
-    notification.classList.add('fade-out');
-    setTimeout(function() {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 300);
-  }, 2000);
 }
