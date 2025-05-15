@@ -54,116 +54,52 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleDebug = document.getElementById('toggleDebug');
   const manualCapture = document.getElementById('manualCapture');
   
-  // Enable debug on startup - we need to diagnose the issue
-  debugSection.style.display = 'block';
+  // Hide debug section by default - user requested no debug info
+  if (debugSection) {
+    debugSection.style.display = 'none';
+  }
   
-  // Function to log debug messages
+  // Function to log debug messages (but don't display them by default)
   function logDebug(message) {
+    // Still log to console for developer troubleshooting
     const timestamp = new Date().toLocaleTimeString();
     const logMessage = `${timestamp}: ${message}\n`;
     console.log(logMessage.trim());
+    
+    // Only add to debug content if it exists
     if (debugContent) {
       debugContent.textContent += logMessage;
       debugContent.scrollTop = debugContent.scrollHeight;
     }
   }
   
-  // Toggle debug section visibility
+  // Only show debug with Shift+Alt+D key combination
+  document.addEventListener('keydown', function(e) {
+    if (e.shiftKey && e.altKey && e.key === 'D' && debugSection) {
+      debugSection.style.display = debugSection.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+  
+  // If toggleDebug button exists, still allow it to work
   if (toggleDebug) {
+    // Hide the button by default
+    toggleDebug.style.display = 'none';
+    
     toggleDebug.addEventListener('click', function() {
       const content = debugContent.style.display;
       debugContent.style.display = content === 'none' ? 'block' : 'none';
     });
   }
-  
-  // Add a diagnose button for troubleshooting
-  const diagnoseButton = document.createElement('button');
-  diagnoseButton.textContent = 'Diagnose Page';
-  diagnoseButton.className = 'manual-capture-btn';
-  diagnoseButton.style.backgroundColor = '#E74C3C';
-  diagnoseButton.style.marginLeft = '5px';
-  
-  if (manualCapture && manualCapture.parentNode) {
-    manualCapture.parentNode.appendChild(diagnoseButton);
+
+  // Also hide any diagnostic buttons by default
+  if (manualCapture) {
+    manualCapture.style.display = 'none';
   }
   
-  diagnoseButton.addEventListener('click', function() {
-    logDebug('Running page diagnostics...');
-    
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs || !tabs[0]) {
-        logDebug('ERROR: No active tab found');
-        return;
-      }
-      
-      chrome.scripting.executeScript({
-        target: {tabId: tabs[0].id},
-        function: detectDOMRestrictions
-      }, function(results) {
-        if (chrome.runtime.lastError) {
-          logDebug(`Diagnostic Error: ${chrome.runtime.lastError.message}`);
-          return;
-        }
-        
-        if (results && results[0] && results[0].result) {
-          const diagResult = results[0].result;
-          logDebug('DIAGNOSTICS RESULTS:');
-          logDebug(`Can modify DOM: ${diagResult.canModifyDOM}`);
-          logDebug(`Has CSP: ${diagResult.hasContentSecurityPolicy}`);
-          if (diagResult.cspDetails) {
-            logDebug(`CSP Details: ${diagResult.cspDetails}`);
-          }
-          logDebug(`Has iframes: ${diagResult.hasIframes} (${diagResult.iframeCount})`);
-          logDebug(`Uses Shadow DOM: ${diagResult.usesShadowDOM} (${diagResult.shadowRootCount} roots)`);
-          logDebug(`Browser: ${diagResult.browserInfo}`);
-          
-          // Give recommendations based on findings
-          if (diagResult.hasContentSecurityPolicy) {
-            logDebug('RECOMMENDATION: This page has CSP restrictions which might block highlighting');
-          }
-          if (diagResult.usesShadowDOM) {
-            logDebug('RECOMMENDATION: This page uses Shadow DOM which can make highlighting more difficult');
-          }
-          if (diagResult.hasIframes && diagResult.iframeCount > 0) {
-            logDebug('RECOMMENDATION: Check if your text is inside an iframe, might need special handling');
-          }
-        }
-      });
-    });
-  });
-  
-  // Enhanced manual capture button
-  if (manualCapture) {
-    manualCapture.addEventListener('click', function() {
-      logDebug('Manual capture button clicked');
-      
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs || !tabs[0]) {
-          logDebug('ERROR: No active tab found');
-          return;
-        }
-        
-        logDebug(`Sending forceGetSelection to tab ${tabs[0].id}`);
-        
-        // Send a message to the content script to force get the selection
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: "forceGetSelection"
-        }, function(response) {
-          if (chrome.runtime.lastError) {
-            logDebug(`ERROR: ${chrome.runtime.lastError.message}`);
-            return;
-          }
-          
-          if (response && response.text) {
-            logDebug(`SUCCESS! Got text: ${response.text.substring(0, 50)}${response.text.length > 50 ? '...' : ''}`);
-            selectedTextInput.value = response.text;
-            chrome.storage.local.set({ 'currentSelectedText': response.text });
-          } else {
-            logDebug('No selection returned from content script');
-          }
-        });
-      });
-    });
+  // Hide diagnose button as well
+  const diagnoseButton = document.querySelector('.manual-capture-btn');
+  if (diagnoseButton) {
+    diagnoseButton.style.display = 'none';
   }
   
   // Get UI elements
@@ -220,19 +156,19 @@ document.addEventListener('DOMContentLoaded', function() {
           if (tabs && tabs[0]) {
             logDebug(`Sending getSelectedText to tab ${tabs[0].id}`);
             
-            chrome.tabs.sendMessage(tabs[0].id, {action: "getSelectedText"}, function(response) {
-              if (chrome.runtime.lastError) {
+              chrome.tabs.sendMessage(tabs[0].id, {action: "getSelectedText"}, function(response) {
+                if (chrome.runtime.lastError) {
                 logDebug(`ERROR: Content script message failed - ${chrome.runtime.lastError.message}`);
                 tryScriptingAPI();
-                return;
-              }
-              
-              if (response && response.text) {
+                  return;
+                }
+                
+                if (response && response.text) {
                 logDebug(`FOUND from content: "${response.text.substring(0, 30)}..."`);
-                selectedTextInput.value = response.text;
+                  selectedTextInput.value = response.text;
                 chrome.storage.local.set({ 'currentSelectedText': response.text });
                 if (noteInput) noteInput.focus();
-              } else {
+                } else {
                 logDebug('No text from content script, trying scripting API');
                 tryScriptingAPI();
               }
@@ -558,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.scripting.executeScript({
       target: {tabId: tabId},
       files: ['content.js']
-    }, function() {
+        }, function() {
       if (chrome.runtime.lastError) {
         logDebug(`Failed to inject script: ${chrome.runtime.lastError.message}`);
         // If injection fails, use the manual highlight approach
@@ -567,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       // Wait a moment for the script to initialize
-      setTimeout(() => {
+          setTimeout(() => {
         // Try highlighting again
         chrome.tabs.sendMessage(tabId, {
           action: "findAndHighlightText",
