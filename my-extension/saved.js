@@ -11,7 +11,53 @@ document.addEventListener('DOMContentLoaded', function() {
   if (deleteAllBtn) {
     deleteAllBtn.addEventListener('click', deleteAllItems);
   }
+  
+  // Set up filter functionality
+  setupFilters();
 });
+
+// Setup filter buttons functionality
+function setupFilters() {
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  let currentFilter = 'all';
+  
+  filterButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Remove active class from all filter buttons
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      
+      // Add active class to clicked button
+      this.classList.add('active');
+      
+      // Get filter value
+      currentFilter = this.dataset.filter;
+      
+      // Apply filter
+      filterItems(currentFilter);
+    });
+  });
+}
+
+// Function to filter displayed items
+function filterItems(filterType) {
+  const cards = document.querySelectorAll('.card');
+  
+  cards.forEach(card => {
+    if (filterType === 'all') {
+      card.style.display = 'flex'; // Show all cards
+    } else {
+      // Show only cards that match the filter type
+      const isHighlight = card.dataset.isHighlight === "true" || card.dataset.type === 'highlight';
+      
+      if ((filterType === 'highlight' && isHighlight) || 
+          (filterType === 'text' && !isHighlight)) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    }
+  });
+}
 
 // Function to fix invalid dates in stored items
 function fixStoredDates() {
@@ -47,14 +93,13 @@ function loadSavedItems() {
   // Clear the container first
   container.innerHTML = '';
   
-  // Get saved items from storage
-  chrome.storage.local.get(['savedItems'], function(result) {
-    const savedItems = result.savedItems || [];
+  // Use our new unified function to load all content
+  loadAllSavedContent().then(allItems => {
     
     // Update Delete All button state
     const deleteAllBtn = document.getElementById('delete-all-btn');
     if (deleteAllBtn) {
-      if (savedItems.length === 0) {
+      if (allItems.length === 0) {
         deleteAllBtn.disabled = true;
         deleteAllBtn.classList.add('disabled');
       } else {
@@ -62,8 +107,7 @@ function loadSavedItems() {
         deleteAllBtn.classList.remove('disabled');
       }
     }
-    
-    if (savedItems.length === 0) {
+      if (allItems.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.className = 'empty-state';
       emptyState.textContent = 'No saved items yet';
@@ -71,193 +115,136 @@ function loadSavedItems() {
       return;
     }
     
-    // Display items in reverse chronological order
-    savedItems.reverse().forEach(function(item, index) {
-      const originalIndex = savedItems.length - 1 - index;
-      const itemElement = document.createElement('div');
-      itemElement.className = 'item';
-      
-      // Create header with date and delete button
-      const itemHeader = document.createElement('div');
-      itemHeader.className = 'item-header';        const dateElement = document.createElement('div');
-      dateElement.className = 'item-date';
-      
-      // Determine timestamp with fallbacks
-      const timestamp = item.timestamp || (item.content && item.content.timestamp) || item.date || null;
-      
-      // Format date if valid, otherwise use current date
-      let dateText;
-      try {
-        if (timestamp) {
-          const dateObj = new Date(timestamp);
-          // Check if date is valid
-          if (isNaN(dateObj.getTime())) {
-            throw new Error('Invalid date');
-          }
-          // Format date as MM/DD/YYYY, HH:MM AM/PM
-          dateText = dateObj.toLocaleDateString() + ', ' + dateObj.toLocaleTimeString();
-        } else {
-          // Use current date if no timestamp
-          dateText = new Date().toLocaleDateString() + ', ' + new Date().toLocaleTimeString();
-        }
-      } catch (e) {
-        console.error('Date formatting error:', e);
-        dateText = new Date().toLocaleDateString() + ', ' + new Date().toLocaleTimeString();
-      }
-      
-      dateElement.textContent = dateText;
-      
-      const deleteButton = document.createElement('button');
-      deleteButton.className = 'delete-btn';
-      deleteButton.textContent = '×';
-      deleteButton.title = 'Delete this item';
-      deleteButton.setAttribute('data-index', originalIndex);        deleteButton.addEventListener('click', function(e) {
-        const itemIndex = parseInt(e.target.getAttribute('data-index'));
-        if (confirm('Are you sure you want to delete this saved item?')) {
-          deleteItem(itemIndex);
-        }
-      });
-      
-      itemHeader.appendChild(dateElement);
-      itemHeader.appendChild(deleteButton);
-      
-      const contentElement = document.createElement('div');
-        if (item.type === 'text') {
-        contentElement.textContent = item.content.text || item.content;
-        
-        // Check if this is actually a highlight stored as text type (new format)
-        const isHighlight = item.content.metadata && item.content.metadata.isHighlight;
-        
-        if (isHighlight) {
-          // Mark this element as a highlight for styling
-          contentElement.className = 'highlight-text';
-            // Apply soft pink color for all highlights
-          contentElement.style.backgroundColor = '#ffb6c1';
-          
-          // Add the web-relorded information in a prominent way
-          const webRelordedInfo = document.createElement('div');
-          webRelordedInfo.className = 'web-relorded-info';
-          
-          // Create highlight info section
-          const highlightInfo = document.createElement('div');
-          highlightInfo.className = 'highlight-info';
-          
-          // Create a small color swatch
-          const colorSwatch = document.createElement('span');
-          colorSwatch.className = 'color-swatch';
-          colorSwatch.style.backgroundColor = '#ffb6c1';
-          colorSwatch.title = 'Highlight color: Soft Pink';
-          
-          highlightInfo.appendChild(colorSwatch);
-          highlightInfo.appendChild(document.createTextNode(' Highlighted text'));
-          
-          contentElement.appendChild(highlightInfo);
-        }
-        
-        // Add source info if available - enhanced formatting for highlights
-        if (item.content.pageUrl && item.content.pageTitle) {
-          const sourceElement = document.createElement('div');
-          sourceElement.className = isHighlight ? 'highlight-source' : 'item-source';
-          
-          // Add webpage favicon if available
-          try {
-            const faviconUrl = new URL(item.content.pageUrl);
-            const faviconElement = document.createElement('img');
-            faviconElement.src = `https://www.google.com/s2/favicons?domain=${faviconUrl.hostname}`;
-            faviconElement.className = 'source-favicon';
-            faviconElement.alt = '';
-            sourceElement.appendChild(faviconElement);
-          } catch (e) {
-            console.log('Could not add favicon');
-          }
-          
-          const sourceLink = document.createElement('a');
-          sourceLink.href = item.content.pageUrl;
-          sourceLink.textContent = item.content.pageTitle;
-          sourceLink.target = '_blank';
-          
-          // Different label depending on if it's a highlight or regular text
-          sourceElement.appendChild(document.createTextNode(isHighlight ? 'Highlighted from: ' : 'Source: '));
-          sourceElement.appendChild(sourceLink);
-          contentElement.appendChild(sourceElement);
-        }      } else if (item.type === 'highlight') {
-        const highlightElement = document.createElement('div');
-        highlightElement.className = 'highlight-text';
-        highlightElement.textContent = item.content.text;
-          // Always use soft pink color regardless of what was stored
-        highlightElement.style.backgroundColor = '#ffb6c1';
-        
-        // Add a label indicating if this was originally highlighted on the website
-        const highlightInfo = document.createElement('div');
-        highlightInfo.className = 'highlight-info';
-        
-        // Create a small color swatch with soft pink
-        const colorSwatch = document.createElement('span');
-        colorSwatch.className = 'color-swatch';
-        colorSwatch.style.backgroundColor = '#ffb6c1'; // Always soft pink
-        colorSwatch.title = 'Highlight color: Soft Pink';
-        
-        highlightInfo.appendChild(colorSwatch);
-        
-        if (item.content.isAlreadyHighlighted) {
-          highlightInfo.appendChild(document.createTextNode(' Originally highlighted on website'));
-        } else {
-          highlightInfo.appendChild(document.createTextNode(' Highlighted by extension'));
-        }
-        
-        contentElement.appendChild(highlightElement);
-        contentElement.appendChild(highlightInfo);
-        
-        // Add source info
-        if (item.content.pageUrl && item.content.pageTitle) {
-          const sourceElement = document.createElement('div');
-          sourceElement.className = 'item-source';
-          const sourceLink = document.createElement('a');
-          sourceLink.href = item.content.pageUrl;
-          sourceLink.textContent = item.content.pageTitle;
-          sourceLink.target = '_blank';
-          sourceElement.appendChild(document.createTextNode('Highlighted from: '));
-          sourceElement.appendChild(sourceLink);
-          contentElement.appendChild(sourceElement);
-        }
-      }
-      else if (item.type === 'image') {
-        contentElement.className = 'item-image';
-        const img = document.createElement('img');
-        img.src = item.content;
-        contentElement.appendChild(img);
-      } 
-      else if (item.type === 'article') {
-        const link = document.createElement('a');
-        link.href = item.content.url;
-        link.textContent = item.content.title;
-        link.target = '_blank';
-        contentElement.appendChild(link);
-      }
-      
-      itemElement.appendChild(itemHeader);
-      itemElement.appendChild(contentElement);
+    // Display items in order (already sorted by timestamp)
+    allItems.forEach(function(item, index) {
+      const itemElement = createItemCard(item);
       container.appendChild(itemElement);
+      
+      // Add event listener to the delete button for this card
+      const deleteBtn = itemElement.querySelector('.delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+          // Pass the item ID and type to the deleteItem function
+          deleteItem(item.id, item.type);
+        });
+      }
     });
   });
 }
 
-// Function to delete an item
-function deleteItem(index) {
-  chrome.storage.local.get(['savedItems'], function(result) {
-    const savedItems = result.savedItems || [];
+// Function to create a card for displaying an item
+function createItemCard(item) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = item.id;
+  card.dataset.type = item.type;
+  
+  // Create content section
+  const cardContent = document.createElement('div');
+  cardContent.className = 'card-content';
+  
+  // Create text paragraph
+  const textElement = document.createElement('p');
+    // Apply special styling for highlights
+  if (item.type === 'highlight' || item.isHighlight) {
+    textElement.className = 'highlight-text';
+    textElement.style.backgroundColor = 'var(--highlight-bg)';
+    card.dataset.isHighlight = "true";
+  }
+  
+  textElement.textContent = item.text;
+  cardContent.appendChild(textElement);
+  
+  // Add source information if available
+  if (item.pageUrl && item.pageTitle) {
+    const sourceElement = document.createElement('div');
+    sourceElement.className = 'source';
     
-    if (index >= 0 && index < savedItems.length) {
-      // Remove the item at the specified index
-      savedItems.splice(index, 1);
-      
-      // Save the updated array back to storage
-      chrome.storage.local.set({savedItems: savedItems}, function() {
-        // Reload the items list
+    // Try to add favicon
+    try {
+      const faviconUrl = new URL(item.pageUrl);
+      const faviconImg = document.createElement('img');
+      faviconImg.src = `https://www.google.com/s2/favicons?domain=${faviconUrl.hostname}`;
+      faviconImg.className = 'favicon';
+      faviconImg.alt = '';
+      sourceElement.appendChild(faviconImg);
+      sourceElement.appendChild(document.createTextNode(' '));
+    } catch (e) {
+      console.log('Could not add favicon');
+    }
+    
+    if (item.type === 'highlight' || item.isHighlight) {
+      sourceElement.appendChild(document.createTextNode('Highlighted from: '));
+    }
+    
+    const sourceLink = document.createElement('a');
+    sourceLink.href = item.pageUrl;
+    sourceLink.textContent = item.pageTitle;
+    sourceLink.target = '_blank';
+    
+    sourceElement.appendChild(sourceLink);
+    cardContent.appendChild(sourceElement);
+  }
+  
+  card.appendChild(cardContent);
+  
+  // Create card actions
+  const cardActions = document.createElement('div');
+  cardActions.className = 'card-actions';
+  
+  // Add delete button
+  const deleteButton = document.createElement('button');
+  deleteButton.className = 'card-action-btn delete-btn';
+  deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+  deleteButton.title = 'Delete this item';
+  deleteButton.dataset.id = item.id;
+    // Add share button
+  const shareButton = document.createElement('button');
+  shareButton.className = 'card-action-btn share-btn';
+  shareButton.innerHTML = '<i class="fas fa-share-alt"></i>';
+  shareButton.title = 'Share this item';
+  shareButton.addEventListener('click', function() {
+    shareItem(item);
+  });
+  
+  cardActions.appendChild(shareButton);
+  cardActions.appendChild(deleteButton);
+  card.appendChild(cardActions);
+  
+  return card;
+}
+
+// Function to delete an item
+function deleteItem(id, type) {
+  // Based on the item type and id, determine which storage to update
+  if (type === 'highlight') {
+    // Delete from highlights storage
+    chrome.storage.local.get(['savedHighlights'], function(result) {
+      const items = result.savedHighlights || [];
+      const newItems = items.filter(item => item.id !== id);
+      chrome.storage.local.set({savedHighlights: newItems}, function() {
         loadSavedItems();
       });
-    }
-  });
+    });
+  } else if (type === 'text') {
+    // Delete from text-only storage
+    chrome.storage.local.get(['savedTextItems'], function(result) {
+      const items = result.savedTextItems || [];
+      const newItems = items.filter(item => item.id !== id);
+      chrome.storage.local.set({savedTextItems: newItems}, function() {
+        loadSavedItems();
+      });
+    });
+  } else {
+    // Handle legacy items
+    chrome.storage.local.get(['savedItems'], function(result) {
+      const items = result.savedItems || [];
+      const newItems = items.filter(item => item.id !== id);
+      chrome.storage.local.set({savedItems: newItems}, function() {
+        loadSavedItems();
+      });
+    });
+  }
 }
 
 // Function to delete all items
@@ -275,8 +262,14 @@ function deleteAllItems() {
     notification.textContent = 'Deleting all items...';
     document.body.appendChild(notification);
     
-    // Delete all items
-    chrome.storage.local.set({savedItems: []}, function() {
+    // Delete all items from all storage types
+    const clearOperations = [
+      new Promise(resolve => chrome.storage.local.set({savedItems: []}, resolve)),
+      new Promise(resolve => chrome.storage.local.set({savedTextItems: []}, resolve)),
+      new Promise(resolve => chrome.storage.local.set({savedHighlights: []}, resolve))
+    ];
+    
+    Promise.all(clearOperations).then(() => {
       // Reset button state
       setTimeout(function() {
         // Reload the items list (which will now be empty)
@@ -284,7 +277,7 @@ function deleteAllItems() {
         deleteAllBtn.textContent = originalText;
         
         // Update notification
-        notification.textContent = 'All items deleted successfully!';
+        notification.textContent = 'All highlights and saved text deleted!';
         notification.classList.add('success');
         
         // Remove notification after 3 seconds
