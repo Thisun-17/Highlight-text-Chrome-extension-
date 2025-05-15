@@ -223,55 +223,47 @@ h1 {
 .filter-section {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
+  gap: 10px;
+  padding: 15px 0;
   background-color: transparent;
   margin-bottom: 20px;
   width: 100%;
   border-bottom: 1px solid var(--border-color);
+  justify-content: center;
 }
 
 .filter-btn {
-  padding: 8px 16px;
+  padding: 8px 20px;
   border: none;
   border-radius: 20px;
-  background-color: transparent;
-  color: #666;
+  background-color: var(--filter-inactive-bg);
+  color: var(--filter-text-inactive);
   font-weight: 500;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   width: fit-content;
   font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
 }
 
 .filter-btn:hover {
-  background-color: #f5f5f5;
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
 }
 
 .filter-btn.active {
-  background-color: #e3ffd4;
-  color: #1a1a1a;
+  background-color: var(--filter-active-bg);
+  color: var(--filter-text-active);
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  border-color: transparent;
 }
 
-.filter-divider {
-  height: 1px;
-  background-color: var(--border-color);
-  margin: 8px 0;
-}
-
-.filter-label {
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--secondary-text-color);
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.filter-label:hover {
-  color: var(--text-color);
-  background-color: rgba(0,0,0,0.05);
-  border-radius: 4px;
+/* Remove unused filter styles */
+.filter-divider, .filter-label {
+  display: none;
 }
 
 /* Card layout styling */

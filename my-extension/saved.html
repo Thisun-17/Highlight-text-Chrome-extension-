@@ -11,21 +11,14 @@
       <button id="delete-all-btn" class="delete-all-btn">Delete All</button>
     </div>
   </div>
-    <div class="filter-section">
-    <button id="filter-all" class="filter-btn active" data-filter="all">All cards</button>
-    <button id="filter-highlights" class="filter-btn" data-filter="highlight">Highlighted</button>
-    <button id="filter-text" class="filter-btn" data-filter="text">Text Only</button>
-    <div class="filter-divider"></div>
-    <div class="filter-label">Collections</div>
-    <div class="filter-label">Canvas</div>
-    <div class="filter-divider"></div>
-    <div class="filter-label">Pinned</div>
-    <div class="filter-label">Reminders for myself</div>
-    <div class="filter-divider"></div>
-    <div class="filter-label">Imports</div>
-    <div class="filter-label">Kindle</div>
-    <div class="filter-label">Readwise</div>
+    
+  <!-- Simplified filter buttons - only keeping essential functionality -->
+  <div class="filter-section">
+    <button id="filter-all" class="filter-btn active" data-filter="all">All Items</button>
+    <button id="filter-highlights" class="filter-btn" data-filter="highlight">Highlights</button>
+    <button id="filter-text" class="filter-btn" data-filter="text">Notes</button>
   </div>
+
   <div id="items-container" class="card-container">
     <!-- Cards will be dynamically inserted here by JavaScript -->
   </div><script src="content-storage.js" type="text/javascript"></script>
