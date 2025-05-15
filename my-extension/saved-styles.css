@@ -156,6 +156,11 @@ h1 {
   margin-top: 100px;
 }
 
+.empty-state.error {
+  color: #e74c3c;
+  font-weight: 500;
+}
+
 .header-container {
   display: flex;
   justify-content: space-between;
@@ -210,10 +215,11 @@ h1 {
   color: white;
   padding: 12px 20px;
   border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   animation: slide-in 0.3s ease-out forwards;
   max-width: 300px;
+  font-weight: 500;
 }
 
 .notification.success {
@@ -222,6 +228,10 @@ h1 {
 
 .notification.error {
   background-color: #e74c3c;
+}
+
+.notification.info {
+  background-color: #3498db;
 }
 
 .notification.fade-out {
@@ -425,4 +435,38 @@ h1 {
 .delete-btn:hover {
   color: #fff;
   background-color: #e74c3c;
+}
+
+.card-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.card-delete-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.card-delete-btn:hover {
+  background-color: #c0392b;
+  transform: scale(1.1);
+}
+
+.card-delete-btn i {
+  font-size: 14px;
+}
+
+.card-delete-btn:focus {
+  outline: none;
 }
