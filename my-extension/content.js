@@ -1,11 +1,11 @@
 // Add this to the top of your content.js file to ensure highlights are styled properly
 (function() {
   // Add CSS for highlights if it doesn't exist
-  if (!document.querySelector('#content-saver-styles')) {
+  if (!document.querySelector('#data-flowx-styles')) {
     const style = document.createElement('style');
-    style.id = 'content-saver-styles';
+    style.id = 'data-flowx-styles';
     style.textContent = `
-      .content-saver-highlight {
+      .data-flowx-highlight {
         background-color: #ffb6c1;  /* Soft pink - constant for all highlights */
         display: inline;
         border-radius: 2px;
@@ -15,11 +15,11 @@
         position: relative;
       }
       
-      .content-saver-highlight:hover {
+      .data-flowx-highlight:hover {
         opacity: 0.9;
       }
       
-      .content-saver-highlight.fuzzy-match {
+      .data-flowx-highlight.fuzzy-match {
         border-bottom: 1px dashed #000;
       }
     `;
@@ -81,7 +81,7 @@ function highlightSelectedText(color, highlightId) {
     // Create the highlight span
     const highlightSpan = document.createElement('span');
     highlightSpan.style.backgroundColor = softPinkColor; // Always use soft pink
-    highlightSpan.className = 'content-saver-highlight';
+    highlightSpan.className = 'data-flowx-highlight';
     highlightSpan.dataset.highlightId = highlightId || 'highlight-' + Date.now();
     
     // Try to surround contents with the span
@@ -174,7 +174,7 @@ function highlightMultipleBlocks(selection, color, highlightId) {
         // For text nodes, wrap them directly
         const span = document.createElement('span');
         span.style.backgroundColor = softPinkColor; // Always use soft pink
-        span.className = 'content-saver-highlight';
+        span.className = 'data-flowx-highlight';
         span.dataset.highlightId = currentId;
         span.textContent = node.textContent;
         fragment.appendChild(span);
@@ -214,7 +214,7 @@ function highlightMultipleBlocks(selection, color, highlightId) {
       if (textNode.textContent.trim() !== "") {
         const span = document.createElement('span');
         span.style.backgroundColor = '#ffb6c1'; // Always use soft pink
-        span.className = 'content-saver-highlight';
+        span.className = 'data-flowx-highlight';
         span.dataset.highlightId = `${id}-sub-${i}`;
         span.textContent = textNode.textContent;
         
@@ -235,7 +235,7 @@ function highlightWithTextNodes(range, color, highlightId) {
     const text = range.toString();
     const span = document.createElement('span');
     span.style.backgroundColor = softPinkColor; // Always use soft pink
-    span.className = 'content-saver-highlight';
+    span.className = 'data-flowx-highlight';
     span.dataset.highlightId = baseId;
     span.textContent = text;
     
@@ -309,11 +309,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
           // Check if selection is within a highlight
           if (container.nodeType === Node.TEXT_NODE && container.parentNode) {
             if (container.parentNode.classList && 
-                container.parentNode.classList.contains('content-saver-highlight')) {
+                container.parentNode.classList.contains('data-flowx-highlight')) {
               highlightElement = container.parentNode;
             }
           } else if (container.classList && 
-                     container.classList.contains('content-saver-highlight')) {
+                     container.classList.contains('data-flowx-highlight')) {
             highlightElement = container;
           }
           
@@ -419,7 +419,7 @@ document.addEventListener('contextmenu', function(event) {
   
   // Find if the target or any parent is a highlight
   while (target && target !== document.body) {
-    if (target.classList && target.classList.contains('content-saver-highlight')) {
+    if (target.classList && target.classList.contains('data-flowx-highlight')) {
       // Store the highlight element ID in a variable for later use
       const highlightId = target.dataset.highlightId;
       if (highlightId) {
@@ -539,7 +539,7 @@ function applyStoredHighlight(highlight) {
             (node.parentElement.tagName === 'SCRIPT' || 
              node.parentElement.tagName === 'STYLE' ||
              node.parentElement.tagName === 'NOSCRIPT' ||
-             node.parentElement.className.includes('content-saver-highlight'))) {
+             node.parentElement.className.includes('data-flowx-highlight'))) {
           return NodeFilter.FILTER_REJECT;
         }
         return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
@@ -585,7 +585,7 @@ function applyStoredHighlight(highlight) {
       
       // Create highlight span with soft pink color
       const highlightSpan = document.createElement('span');
-      highlightSpan.className = 'content-saver-highlight';
+      highlightSpan.className = 'data-flowx-highlight';
       highlightSpan.style.backgroundColor = '#ffb6c1'; // Always use soft pink regardless of stored color
       highlightSpan.style.display = 'inline';
       highlightSpan.dataset.highlightId = highlightId;
@@ -663,7 +663,7 @@ function tryFuzzyHighlightMatch(text, color, highlightId) {
     
     // Create highlight span with soft pink
     const span = document.createElement('span');
-    span.className = 'content-saver-highlight fuzzy-match';
+    span.className = 'data-flowx-highlight fuzzy-match';
     span.style.backgroundColor = '#ffb6c1'; // Always use soft pink
     span.dataset.highlightId = highlightId;
     span.dataset.originalText = text;
