@@ -208,12 +208,13 @@
     
     /* Debug section styles */
     .debug-section {
-      margin-top: 20px;
-      font-size: 12px;
-      padding: 10px;
-      background-color: #f0f0f0;
-      border-radius: 8px;
-      display: none;
+      display: none !important;
+    }
+    
+    /* Ensure any debug-related elements are hidden */
+    #debugContent, #toggleDebug, .manual-capture-btn, #manualCapture, 
+    [id*="debug"], [class*="debug"], [id*="diagnose"], [class*="diagnose"] {
+      display: none !important;
     }
     
     .debug-title {
@@ -262,7 +263,7 @@
     
     <div class="popup-content">
       <div class="highlight-indicator">
-        <i class="fas fa-highlighter"></i> Selected Text
+        <i class="fas fa-highlighter"></i>
       </div>
       
       <div class="input-group">
@@ -274,8 +275,7 @@
       </div>
       
       <div class="search-box">
-        <i class="fas fa-search search-icon"></i>
-        <input type="text" class="search-input" placeholder="Add to collections">
+        <input type="text" class="search-input" placeholder="">
       </div>
       
       <div class="controls-row">
@@ -287,18 +287,18 @@
         </button>
       </div>
       
+      <!-- Debug section -->
+      <div class="debug-section hidden-debug" style="display:none;">
+        <div class="debug-title" id="toggleDebug">Debug Info (Click to Toggle)</div>
+        <pre id="debugContent" style="display:none;"></pre>
+        <button id="manualCapture" class="manual-capture-btn" style="display:none;">Manually Capture Selection</button>
+      </div>
+      
       <div class="button-container">
         <button class="primary-btn" id="addToLibrary">Add to my library</button>
         <button class="secondary-btn" id="viewLibrary">
           <i class="fas fa-book-open"></i> View Library
         </button>
-      </div>
-      
-      <!-- Debug section -->
-      <div class="debug-section">
-        <div class="debug-title" id="toggleDebug">Debug Info (Click to Toggle)</div>
-        <div class="debug-content" id="debugContent"></div>
-        <button class="manual-capture-btn" id="manualCapture">Manually Capture Selection</button>
       </div>
     </div>
   </div>

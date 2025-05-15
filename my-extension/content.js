@@ -12,8 +12,8 @@ function debugLog(message) {
 // SPECIAL FIX: Direct approach for text selection
 function captureTextSelection() {
   // Capture any text that's selected on the page
-  const selection = window.getSelection();
-  if (selection && selection.toString().trim() !== '') {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim() !== '') {
     const selectedText = selection.toString().trim();
     debugLog(`DIRECT CAPTURE: Selected text: ${selectedText.substring(0, 50)}...`);
     
@@ -162,33 +162,33 @@ function forceHighlightText(text, highlightId) {
       console.log("Trying range-based highlighting...");
       
       // Escape special characters for regex search
-      const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const escapedText = escapeRegExp(text);
-      
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedText = escapeRegExp(text);
+    
       // Find all text nodes that contain our text
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: function(node) {
-            // Skip script, style tags and existing highlights
-            if (node.parentElement && 
-                (node.parentElement.tagName === 'SCRIPT' || 
-                 node.parentElement.tagName === 'STYLE' ||
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          // Skip script, style tags and existing highlights
+          if (node.parentElement && 
+              (node.parentElement.tagName === 'SCRIPT' || 
+               node.parentElement.tagName === 'STYLE' ||
                  node.parentElement.tagName === 'NOSCRIPT' ||
                  node.parentElement.className && 
-                 node.parentElement.className.includes('data-flowx-highlight'))) {
-              return NodeFilter.FILTER_REJECT;
-            }
-            return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+               node.parentElement.className.includes('data-flowx-highlight'))) {
+            return NodeFilter.FILTER_REJECT;
           }
+          return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
         }
-      );
-      
+      }
+    );
+    
       // Collect matching nodes
       const matchedNodes = [];
-      let currentNode;
-      while (currentNode = walker.nextNode()) {
+    let currentNode;
+    while (currentNode = walker.nextNode()) {
         matchedNodes.push(currentNode);
       }
       
@@ -200,33 +200,33 @@ function forceHighlightText(text, highlightId) {
         try {
           const index = node.textContent.indexOf(text);
           if (index >= 0) {
-            const range = document.createRange();
-            range.setStart(node, index);
-            range.setEnd(node, index + text.length);
-            
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + text.length);
+        
             // Create highlight span
-            const span = document.createElement('span');
-            span.className = 'data-flowx-highlight';
+        const span = document.createElement('span');
+        span.className = 'data-flowx-highlight';
             span.style.backgroundColor = lightGreenColor;
             span.dataset.highlightId = id;
-            
+        
             // Try to surround with highlight
-            range.surroundContents(span);
-            
+        range.surroundContents(span);
+        
             // Add click handler
-            span.addEventListener('click', function(e) {
-              if (e.ctrlKey || e.metaKey) {
-                const textNode = document.createTextNode(span.textContent);
-                span.parentNode.replaceChild(textNode, span);
-                textNode.parentNode.normalize();
-                
-                chrome.runtime.sendMessage({
-                  action: "removeHighlight",
-                  highlightId: id
-                });
-              }
-            });
+        span.addEventListener('click', function(e) {
+          if (e.ctrlKey || e.metaKey) {
+            const textNode = document.createTextNode(span.textContent);
+            span.parentNode.replaceChild(textNode, span);
+            textNode.parentNode.normalize();
             
+            chrome.runtime.sendMessage({
+              action: "removeHighlight",
+                  highlightId: id
+            });
+          }
+        });
+        
             return { success: true, highlightId: id };
           }
         } catch (e) {
@@ -335,11 +335,11 @@ function forceHighlightText(text, highlightId) {
       );
       
       // Collect text nodes
-      const textNodes = [];
-      let node;
-      while (node = walker.nextNode()) {
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
         if (node.textContent.trim() !== '') {
-          textNodes.push(node);
+      textNodes.push(node);
         }
       }
       
@@ -377,8 +377,8 @@ function forceHighlightText(text, highlightId) {
               range.setEnd(matchingNode, index + text.length);
               
               // Create highlight span
-              const span = document.createElement('span');
-              span.className = 'data-flowx-highlight';
+        const span = document.createElement('span');
+        span.className = 'data-flowx-highlight';
               span.style.backgroundColor = lightGreenColor;
               span.dataset.highlightId = id;
               
@@ -492,15 +492,15 @@ function restoreHighlightsOnPageLoad() {
       // Skip items without content or pageUrl
       if (!item || !item.content || !item.content.pageUrl) return false;
       
-      try {
+        try {
         // Parse stored URL for comparison
-        const storedUrlObj = new URL(item.content.pageUrl);
-        const storedUrlBase = storedUrlObj.origin + storedUrlObj.pathname;
-        
+          const storedUrlObj = new URL(item.content.pageUrl);
+          const storedUrlBase = storedUrlObj.origin + storedUrlObj.pathname;
+          
         // Check if this is a highlight
-        const isHighlight = 
+          const isHighlight = 
           item.type === 'text' || 
-          item.type === 'highlight' || 
+            item.type === 'highlight' || 
           (item.content.metadata && item.content.metadata.isHighlight) ||
           item.content.wasHighlighted === true ||
           !!item.content.highlightId;
@@ -513,7 +513,7 @@ function restoreHighlightsOnPageLoad() {
           return true;
         }
         
-        return false;
+      return false;
       } catch (e) {
         console.error("Error parsing URL for highlight:", e);
         // Fallback to exact URL match if parsing fails
@@ -667,7 +667,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // IMPORTANT: Notify that content script is fully loaded and ready
 console.log("✅ Content script fully loaded for: " + window.location.href);
-chrome.runtime.sendMessage({
+  chrome.runtime.sendMessage({
   action: "contentScriptReady", 
   url: window.location.href,
   timestamp: new Date().toISOString()
