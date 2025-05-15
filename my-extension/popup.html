@@ -66,7 +66,7 @@
       padding: 15px;
       border: 2px solid #4a90e2;
       border-radius: 8px;
-      min-height: 80px;
+      min-height: 120px;
       resize: none;
       font-family: inherit;
       margin-bottom: 16px;
@@ -98,14 +98,36 @@
     
     .note-input {
       width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
+      padding: 12px 15px;
+      border: 2px solid #4a90e2;
       border-radius: 8px;
-      min-height: 60px;
-      resize: none;
+      height: 46px;
       font-family: inherit;
-      margin-bottom: 15px;
-      font-size: 14px;
+      margin-bottom: 16px;
+      font-size: 15px;
+      background-color: #f8faff;
+      color: #333;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+    }
+    
+    .note-input:focus {
+      border-color: #3a7ad9;
+      outline: none;
+      box-shadow: 0 3px 8px rgba(74, 144, 226, 0.2);
+    }
+    
+    .note-input::placeholder {
+      color: #a0a0a0;
+      font-style: italic;
+    }
+    
+    /* Style for when note is entered */
+    .note-input:not(:placeholder-shown) {
+      background-color: #fff;
+      border-left: 4px solid #4a90e2;
     }
     
     .search-input {
@@ -247,12 +269,16 @@
       align-items: center;
       margin-bottom: 8px;
       color: #4a90e2;
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 16px;
+      font-weight: 600;
     }
     
     .highlight-indicator i {
-      margin-right: 6px;
+      margin-right: 8px;
+    }
+    
+    .highlight-indicator span {
+      letter-spacing: 0.02em;
     }
   </style>
 </head>
@@ -264,6 +290,7 @@
     <div class="popup-content">
       <div class="highlight-indicator">
         <i class="fas fa-highlighter"></i>
+        <span>Data FlowX</span>
       </div>
       
       <div class="input-group">
@@ -271,20 +298,7 @@
       </div>
       
       <div class="input-group">
-        <textarea class="note-input" placeholder="Add a note"></textarea>
-      </div>
-      
-      <div class="search-box">
-        <input type="text" class="search-input" placeholder="">
-      </div>
-      
-      <div class="controls-row">
-        <button class="control-button">
-          <i class="far fa-star"></i> Favorites
-        </button>
-        <button class="control-button">
-          <i class="fas fa-lock"></i> Private
-        </button>
+        <input type="text" class="note-input" placeholder="Add a note">
       </div>
       
       <!-- Debug section -->
