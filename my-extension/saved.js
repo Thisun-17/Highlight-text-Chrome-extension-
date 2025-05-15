@@ -123,9 +123,15 @@ function loadSavedItems() {
       // Add event listener to the delete button for this card
       const deleteBtn = itemElement.querySelector('.delete-btn');
       if (deleteBtn) {
-        deleteBtn.addEventListener('click', function() {
-          // Pass the item ID and type to the deleteItem function
-          deleteItem(item.id, item.type);
+        deleteBtn.addEventListener('click', function(e) {
+          // Prevent event from bubbling up
+          e.stopPropagation();
+          
+          // Add confirmation if needed
+          if (confirm('Are you sure you want to delete this item?')) {
+            // Pass the item ID and type to the deleteItem function
+            deleteItem(item.id, item.type);
+          }
         });
       }
     });
@@ -250,6 +256,21 @@ function createItemCard(item) {
 
 // Function to delete an item
 function deleteItem(id, type) {
+  // Find and animate the card before deletion
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (card) {
+    card.classList.add('card-fade-out');
+    // Wait for animation to complete before refreshing the list
+    setTimeout(() => {
+      performDelete(id, type);
+    }, 300);
+  } else {
+    performDelete(id, type);
+  }
+}
+
+// Helper function to perform the actual deletion
+function performDelete(id, type) {
   // Based on the item type and id, determine which storage to update
   if (type === 'highlight') {
     // Delete from highlights storage
