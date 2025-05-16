@@ -6,7 +6,8 @@
   <link rel="stylesheet" href="theme-styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>    .container {
+  <style>    
+    .container {
       width: 380px;
       max-width: 100%;
       padding: 0;
@@ -25,6 +26,35 @@
       cursor: pointer;
       color: #555;
       z-index: 10;
+    }
+    
+    .dustbin-button {
+      position: absolute;
+      top: 15px;
+      right: 50px;
+      font-size: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #555;
+      z-index: 10;
+      transition: color 0.2s ease;
+      padding: 5px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+    }
+    
+    .dustbin-button:hover {
+      color: #e74c3c;
+      background-color: rgba(231, 76, 60, 0.1);
+    }
+    
+    .dustbin-button i {
+      font-size: 16px;
     }
     
     .share-button {
@@ -60,7 +90,6 @@
       margin-bottom: 15px;
     }    
     
-    /* Enhanced styling for the selected text field */
     .selected-text-input {
       width: 100%;
       padding: 15px;
@@ -90,7 +119,6 @@
       font-style: italic;
     }
     
-    /* Style for when text is selected */
     .selected-text-input:not(:placeholder-shown) {
       background-color: #fff;
       border-left: 4px solid #4a90e2;
@@ -124,7 +152,6 @@
       font-style: italic;
     }
     
-    /* Style for when note is entered */
     .note-input:not(:placeholder-shown) {
       background-color: #fff;
       border-left: 4px solid #4a90e2;
@@ -144,7 +171,8 @@
       justify-content: space-between;
       margin-bottom: 15px;
     }
-      .control-button {
+    
+    .control-button {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -163,7 +191,8 @@
     .control-button:hover {
       background-color: #f5f5f5;
     }
-      .primary-btn {
+    
+    .primary-btn {
       background-color: #4a90e2;
       color: white;
       border: none;
@@ -181,7 +210,6 @@
       background-color: #3a7ad9;
     }
     
-    /* Secondary button style for View Library */
     .secondary-btn {
       background-color: #f8faff;
       color: #4a90e2;
@@ -208,7 +236,6 @@
       font-size: 16px;
     }
     
-    /* Button container for primary and secondary buttons */
     .button-container {
       display: flex;
       flex-direction: column;
@@ -228,42 +255,6 @@
       color: #888;
     }
     
-    /* Debug section styles */
-    .debug-section {
-      display: none !important;
-    }
-    
-    /* Ensure any debug-related elements are hidden */
-    #debugContent, #toggleDebug, .manual-capture-btn, #manualCapture, 
-    [id*="debug"], [class*="debug"], [id*="diagnose"], [class*="diagnose"] {
-      display: none !important;
-    }
-    
-    .debug-title {
-      font-weight: bold;
-      margin-bottom: 5px;
-      cursor: pointer;
-    }
-    
-    .debug-content {
-      max-height: 100px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    
-    .manual-capture-btn {
-      margin-top: 10px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    
-    /* Text highlight indicator */
     .highlight-indicator {
       display: flex;
       align-items: center;
@@ -285,6 +276,9 @@
 <body>
   <div class="container">
     <button class="close-button">✕</button>
+    <button class="dustbin-button" title="Clear all">
+      <i class="fas fa-trash-alt"></i>
+    </button>
     <button class="share-button"><i class="fas fa-share-alt"></i></button>
     
     <div class="popup-content">
@@ -299,13 +293,6 @@
       
       <div class="input-group">
         <input type="text" class="note-input" placeholder="Add a note">
-      </div>
-      
-      <!-- Debug section -->
-      <div class="debug-section hidden-debug" style="display:none;">
-        <div class="debug-title" id="toggleDebug">Debug Info (Click to Toggle)</div>
-        <pre id="debugContent" style="display:none;"></pre>
-        <button id="manualCapture" class="manual-capture-btn" style="display:none;">Manually Capture Selection</button>
       </div>
       
       <div class="button-container">
