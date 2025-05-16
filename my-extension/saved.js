@@ -5,59 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Then load items for display
   loadSavedItems();
-  
-  // Set up the Delete All button functionality
-  const deleteAllBtn = document.getElementById('delete-all-btn');
-  if (deleteAllBtn) {
-    deleteAllBtn.addEventListener('click', deleteAllItems);
-  }
-  
-  // Set up filter functionality
-  setupFilters();
 });
 
-// Setup filter buttons functionality
-function setupFilters() {
-  const filterButtons = document.querySelectorAll('.filter-btn');
-  let currentFilter = 'all';
-  
-  filterButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      // Remove active class from all filter buttons
-      filterButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add active class to clicked button
-      this.classList.add('active');
-      
-      // Get filter value
-      currentFilter = this.dataset.filter;
-      
-      // Apply filter
-      filterItems(currentFilter);
-    });
-  });
-}
 
-// Function to filter displayed items
-function filterItems(filterType) {
-  const cards = document.querySelectorAll('.card');
-  
-  cards.forEach(card => {
-    if (filterType === 'all') {
-      card.style.display = 'flex'; // Show all cards
-    } else {
-      // Show only cards that match the filter type
-      const isHighlight = card.dataset.isHighlight === "true" || card.dataset.type === 'highlight';
-      
-      if ((filterType === 'highlight' && isHighlight) || 
-          (filterType === 'text' && !isHighlight)) {
-        card.style.display = 'flex';
-      } else {
-        card.style.display = 'none';
-      }
-    }
-  });
-}
 
 // Function to fix invalid dates in stored items
 function fixStoredDates() {
@@ -95,19 +45,7 @@ function loadSavedItems() {
   
   // Use our new unified function to load all content
   loadAllSavedContent().then(allItems => {
-    
-    // Update Delete All button state
-    const deleteAllBtn = document.getElementById('delete-all-btn');
-    if (deleteAllBtn) {
-      if (allItems.length === 0) {
-        deleteAllBtn.disabled = true;
-        deleteAllBtn.classList.add('disabled');
-      } else {
-        deleteAllBtn.disabled = false;
-        deleteAllBtn.classList.remove('disabled');
-      }
-    }
-      if (allItems.length === 0) {
+    if (allItems.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.className = 'empty-state';
       emptyState.textContent = 'No saved items yet';
@@ -134,6 +72,18 @@ function createItemCard(item) {
   card.dataset.id = item.id;
   card.dataset.type = item.type;
   
+  // Create Widihata logo section
+  const widihataSection = document.createElement('div');
+  widihataSection.className = 'card-widihata';
+  
+  const widihataLogo = document.createElement('img');
+  widihataLogo.className = 'widihata-logo';
+  widihataLogo.src = 'icon.png'; // Using the extension icon as the Widihata logo
+  widihataLogo.alt = 'Widihata';
+  widihataSection.appendChild(widihataLogo);
+  
+  card.appendChild(widihataSection);
+  
   // Create content section
   const cardContent = document.createElement('div');
   cardContent.className = 'card-content';
@@ -149,10 +99,33 @@ function createItemCard(item) {
   }
   else if (item.type === 'article') {
     textElement.className = 'article-text';
+  }
+  else if (item.type === 'fullpage') {
+    textElement.className = 'fullpage-text';
     card.classList.add('article-card');
   }
   
-  textElement.textContent = item.text;
+  // Get text content based on item type and structure
+  if (item.type === 'fullpage') {
+    // For full page content, use excerpt in card view
+    if (item.excerpt) {
+      textElement.textContent = item.excerpt;
+    } else if (item.content && item.content.excerpt) {
+      textElement.textContent = item.content.excerpt;
+    } else if (item.content && item.content.content) {
+      // If no excerpt, show beginning of content
+      const fullContent = item.content.content;
+      textElement.textContent = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
+    } else {
+      textElement.textContent = item.text || 'Full page content saved';
+    }
+  } else {
+    // Standard text handling for other item types
+    textElement.textContent = item.text || 
+      (item.content && typeof item.content === 'string' ? item.content : 
+      (item.content && item.content.text ? item.content.text : ''));
+  }
+  
   cardContent.appendChild(textElement);
   
   // Add notes if available - check all possible locations
@@ -177,9 +150,15 @@ function createItemCard(item) {
     notesElement.appendChild(notesContent);
     cardContent.appendChild(notesElement);
   }
-  
-  // Add source information if available
+    // Add source information if available
   if ((item.pageUrl || item.url) && (item.pageTitle || item.title)) {
+    // First, add the title as a separate element
+    const titleElement = document.createElement('div');
+    titleElement.className = 'article-source';
+    titleElement.textContent = item.title || item.pageTitle;
+    cardContent.appendChild(titleElement);
+    
+    // Then add the source link
     const sourceElement = document.createElement('div');
     sourceElement.className = 'source';
     
@@ -199,16 +178,18 @@ function createItemCard(item) {
       console.log('Could not add favicon');
     }
     
-    if (item.type === 'highlight' || item.isHighlight) {
-      sourceElement.appendChild(document.createTextNode('Highlighted from: '));
-    }
-    else if (item.type === 'article') {
-      sourceElement.appendChild(document.createTextNode('Article: '));
+    // Create URL display text
+    let displayUrl = url;
+    try {
+      const urlObj = new URL(url);
+      displayUrl = urlObj.hostname;
+    } catch (e) {
+      console.log('Could not parse URL');
     }
     
     const sourceLink = document.createElement('a');
     sourceLink.href = url;
-    sourceLink.textContent = item.title || item.pageTitle;
+    sourceLink.textContent = displayUrl;
     sourceLink.target = '_blank';
     
     sourceElement.appendChild(sourceLink);
@@ -472,51 +453,4 @@ function showDeleteSuccessNotification(notification) {
       }
     }, 300);
   }, 1500);
-}
-
-// Function to delete all items
-function deleteAllItems() {
-  if (confirm('Are you sure you want to delete all saved items? This cannot be undone.')) {
-    // Show deletion in progress
-    const deleteAllBtn = document.getElementById('delete-all-btn');
-    const originalText = deleteAllBtn.textContent;
-    deleteAllBtn.textContent = 'Deleting...';
-    deleteAllBtn.disabled = true;
-    
-    // Create and show a temporary notification
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = 'Deleting all items...';
-    document.body.appendChild(notification);
-    
-    // Delete all items from all storage types
-    const clearOperations = [
-      new Promise(resolve => chrome.storage.local.set({savedItems: []}, resolve)),
-      new Promise(resolve => chrome.storage.local.set({savedTextItems: []}, resolve)),
-      new Promise(resolve => chrome.storage.local.set({savedHighlights: []}, resolve))
-    ];
-    
-    Promise.all(clearOperations).then(() => {
-      // Reset button state
-      setTimeout(function() {
-        // Reload the items list (which will now be empty)
-        loadSavedItems();
-        deleteAllBtn.textContent = originalText;
-        
-        // Update notification
-        notification.textContent = 'All highlights and saved text deleted!';
-        notification.classList.add('success');
-        
-        // Remove notification after 3 seconds
-        setTimeout(function() {
-          notification.classList.add('fade-out');
-          setTimeout(function() {
-            if (notification.parentNode) {
-              notification.parentNode.removeChild(notification);
-            }
-          }, 300);
-        }, 2000);
-      }, 500); // Small delay for visual feedback
-    });
-  }
 }
