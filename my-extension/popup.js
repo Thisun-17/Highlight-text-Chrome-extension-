@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
           attemptCount++;
           logDebug(`Highlight attempt ${attemptCount}/${maxAttempts}`);
           
-          // Choose the appropriate method based on attempt number
+        // Choose the appropriate method based on attempt number
           if (attemptCount === 1) {
             // First try: standard findAndHighlightText
             logDebug("Attempting to highlight with primary method");
@@ -432,14 +432,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }, handleHighlightResponse);
           } 
           else if (attemptCount === 2) {
-            // Second try: direct scripting executeScript
-            logDebug("Attempting to highlight with scripting API");
-            injectHighlightStyle(tabs[0].id, selectedText, highlightId, content);
+            // Second try: Try highlight directly using highlightSelectedText
+            logDebug("Attempting to highlight with highlightSelectedText method");
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: "highlightSelectedText",
+              selectionText: selectedText,
+              highlightId: highlightId
+            }, handleHighlightResponse);
           }
           else if (attemptCount === 3) {
-            // Third try: Try reinstalling the content script then highlighting
-            logDebug("Attempting to reinstall content script and highlight");
-            injectContentScriptAndRetry(tabs[0].id, selectedText, highlightId);
+            // Third try: direct scripting executeScript
+            logDebug("Attempting to highlight with scripting API");
+            injectHighlightStyle(tabs[0].id, selectedText, highlightId, content);
           }
         }
         
@@ -724,6 +728,17 @@ document.addEventListener('DOMContentLoaded', function() {
       chrome.storage.local.set({ savedItems: savedItems }, function() {
         logDebug(`Text saved with ID: ${highlightId}`);
         showStatus(wasHighlighted ? 'Added to library and highlighted!' : 'Added to library!');
+        
+        // After saving, send a message to the content script to ensure the highlight persists
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (tabs && tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: "restoreHighlights"
+            }, function(response) {
+              logDebug("Sent restoreHighlights message to ensure highlight persists");
+            });
+          }
+        });
         
         // Clear both input fields
         if (selectedTextInput) selectedTextInput.value = '';
