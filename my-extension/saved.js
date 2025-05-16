@@ -238,13 +238,9 @@ function createItemCard(item) {
   // Store the type based on item properties
   const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
   
-  // Add menu items
+  // Add menu items - only keeping Add note and Delete as requested
   const menuItems = [
-    { icon: 'fa-share-alt', text: 'Share', action: () => shareItem(item) },
     { icon: 'fa-sticky-note', text: 'Add note', action: () => addNoteToItem(item) },
-    { icon: 'fa-folder-plus', text: 'Add to collections', action: () => addToCollection(item) },
-    { icon: 'fa-star', text: 'Favorite', action: () => toggleFavorite(item) },
-    { icon: 'fa-lock', text: 'Make private', action: () => togglePrivate(item) },
     { icon: 'fa-trash-alt', text: 'Delete', action: () => {
       if (confirm('Are you sure you want to delete this item?')) {
         deleteItem(item.id, itemType);
