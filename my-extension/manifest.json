@@ -1,8 +1,7 @@
 {
-  "manifest_version": 3,
-  "name": "Data FlowX",
+  "manifest_version": 3,  "name": "Highlighter",
   "version": "1.0",
-  "description": "Effortlessly highlight text, save images, articles, videos, and more.",
+  "description": "Effortlessly highlight and save text from web pages.",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
   },
