@@ -120,21 +120,9 @@ function loadSavedItems() {
       const itemElement = createItemCard(item);
       container.appendChild(itemElement);
       
-      // Add event listener to the delete button for this card
+      // Log the delete button for debugging - don't add another click handler
       const deleteBtn = itemElement.querySelector('.delete-btn');
       console.log('Delete button for item', item.id, ':', deleteBtn);
-      
-      if (deleteBtn) {
-        // Add direct click handler to delete button
-        deleteBtn.onclick = function(e) {
-          console.log('Delete button clicked for item:', item.id);
-          e.stopPropagation();
-          
-          if (confirm('Are you sure you want to delete this item?')) {
-            deleteItem(item.id, item.type);
-          }
-        };
-      }
     });
   });
 }
@@ -227,76 +215,267 @@ function createItemCard(item) {
     cardContent.appendChild(sourceElement);
   }
   
-  card.appendChild(cardContent);
+  // Create actions container for buttons
+  const cardActions = document.createElement('div');
+  cardActions.className = 'card-actions';
   
-  // Create a simple delete button
-  const deleteButton = document.createElement('button');
-  deleteButton.className = 'delete-btn';
-  deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete';
-  deleteButton.style.backgroundColor = '#e74c3c';
-  deleteButton.style.color = 'white';
-  deleteButton.style.border = 'none';
-  deleteButton.style.padding = '5px 10px';
-  deleteButton.style.borderRadius = '4px';
-  deleteButton.style.cursor = 'pointer';
-  deleteButton.style.marginTop = '10px';
-  deleteButton.style.float = 'right';
-  deleteButton.dataset.id = item.id;
+  // Create menu button with dropdown
+  const menuButton = document.createElement('button');
+  menuButton.className = 'card-action-btn menu-btn';
+  menuButton.innerHTML = '<i class="fas fa-ellipsis-h"></i>';
+  menuButton.title = "Menu options";
+  menuButton.setAttribute('aria-label', 'Item options menu');
   
-  // Add inline click handler to ensure it works
-  deleteButton.onclick = function(e) {
+  // Create unique ID for this dropdown
+  const dropdownId = `dropdown-${item.id}`;
+  menuButton.dataset.dropdownId = dropdownId;
+  
+  // Create dropdown menu
+  const dropdown = document.createElement('div');
+  dropdown.className = 'dropdown-menu';
+  dropdown.id = dropdownId;
+  
+  // Store the type based on item properties
+  const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
+  
+  // Add menu items
+  const menuItems = [
+    { icon: 'fa-share-alt', text: 'Share', action: () => shareItem(item) },
+    { icon: 'fa-sticky-note', text: 'Add note', action: () => addNoteToItem(item) },
+    { icon: 'fa-folder-plus', text: 'Add to collections', action: () => addToCollection(item) },
+    { icon: 'fa-star', text: 'Favorite', action: () => toggleFavorite(item) },
+    { icon: 'fa-lock', text: 'Make private', action: () => togglePrivate(item) },
+    { icon: 'fa-trash-alt', text: 'Delete', action: () => {
+      if (confirm('Are you sure you want to delete this item?')) {
+        deleteItem(item.id, itemType);
+      }
+    }}
+  ];
+  
+  menuItems.forEach(menuItem => {
+    const item = document.createElement('button');
+    item.className = 'dropdown-item';
+    item.innerHTML = `<i class="fas ${menuItem.icon}"></i> ${menuItem.text}`;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuItem.action();
+      dropdown.classList.remove('show');
+    });
+    dropdown.appendChild(item);
+  });
+  
+  // Toggle dropdown on menu button click
+  menuButton.addEventListener('click', function(e) {
     e.stopPropagation();
-    console.log('Delete button clicked inline for item:', item.id);
     
-    if (confirm('Are you sure you want to delete this item?')) {
-      deleteItem(item.id, item.type);
+    // Close all other open dropdowns first
+    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+      if (menu.id !== dropdownId) {
+        menu.classList.remove('show');
+      }
+    });
+    
+    dropdown.classList.toggle('show');
+    
+    // Close dropdown when clicking elsewhere
+    const closeDropdown = function(event) {
+      if (!menuButton.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.remove('show');
+        document.removeEventListener('click', closeDropdown);
+      }
+    };
+    
+    if (dropdown.classList.contains('show')) {
+      // Ensure dropdown is within viewport
+      const dropdownRect = dropdown.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      if (dropdownRect.bottom > viewportHeight) {
+        dropdown.style.top = 'auto';
+        dropdown.style.bottom = '36px';
+      }
+      
+      // Position the dropdown
+      positionDropdown();
+      
+      setTimeout(() => {
+        document.addEventListener('click', closeDropdown);
+      }, 0);
     }
+  });
+  
+  // Position the dropdown relative to the menu button
+  const positionDropdown = () => {
+    const buttonRect = menuButton.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = `${buttonRect.bottom}px`;
+    dropdown.style.right = `${window.innerWidth - buttonRect.right}px`;
   };
   
-  // Append the delete button directly to the card
-  card.appendChild(deleteButton);
+  // Position initially and on window resize
+  window.addEventListener('resize', positionDropdown);
+  menuButton.addEventListener('click', positionDropdown);
+  
+  // Add the menu button and dropdown to card actions
+  cardActions.appendChild(menuButton);
+  // Append dropdown to the body instead of card to avoid clipping issues
+  document.body.appendChild(dropdown);
+  
+  // Add the actions to the card
+  card.appendChild(cardContent);
+  card.appendChild(cardActions);
   
   return card;
 }
 
+// Placeholder functions for the menu actions
+function shareItem(item) {
+  console.log('Share item:', item);
+  // Implementation to be added later
+}
+
+function addNoteToItem(item) {
+  console.log('Add note to item:', item);
+  // Implementation to be added later
+}
+
+function addToCollection(item) {
+  console.log('Add to collection:', item);
+  // Implementation to be added later
+}
+
+function toggleFavorite(item) {
+  console.log('Toggle favorite:', item);
+  // Implementation to be added later
+}
+
+function togglePrivate(item) {
+  console.log('Toggle private:', item);
+  // Implementation to be added later
+}
+
 // Function to delete an item
 function deleteItem(id, type) {
-  console.log('Delete item called with ID:', id, 'and type:', type);
+  console.log('Delete item called with ID:', id, 'type:', type);
   
-  // Use a simpler approach - delete directly from storage
-  // Handle different storage types
-  if (type === 'highlight') {
-    chrome.storage.local.get(['savedHighlights'], function(result) {
-      const items = result.savedHighlights || [];
-      const newItems = items.filter(item => item.id !== id);
-      chrome.storage.local.set({savedHighlights: newItems}, function() {
-        console.log('Item deleted from savedHighlights:', id);
-        // Reload the items to refresh the view
-        loadSavedItems();
-      });
-    });
-  } else if (type === 'text') {
-    chrome.storage.local.get(['savedTextItems'], function(result) {
-      const items = result.savedTextItems || [];
-      const newItems = items.filter(item => item.id !== id);
-      chrome.storage.local.set({savedTextItems: newItems}, function() {
-        console.log('Item deleted from savedTextItems:', id);
-        // Reload the items to refresh the view
-        loadSavedItems();
-      });
-    });
+  // Clean up dropdown elements
+  const dropdown = document.getElementById(`dropdown-${id}`);
+  if (dropdown) {
+    dropdown.remove();
+  }
+  
+  // Show temporary deletion notification
+  const notification = document.createElement('div');
+  notification.className = 'notification';
+  notification.textContent = 'Deleting item...';
+  document.body.appendChild(notification);
+  
+  // Remove the item from the UI immediately for better UX
+  const itemCard = document.querySelector(`.card[data-id="${id}"]`);
+  if (itemCard) {
+    itemCard.classList.add('card-fade-out');
+    console.log('Found and applied fade-out to card element:', itemCard);
   } else {
-    // Handle legacy items
-    chrome.storage.local.get(['savedItems'], function(result) {
-      const items = result.savedItems || [];
-      const newItems = items.filter(item => item.id !== id);
+    console.error('Card element not found in DOM for id:', id);
+  }
+  
+  // First try to remove from savedItems (legacy items)
+  chrome.storage.local.get(['savedItems'], function(result) {
+    const items = result.savedItems || [];
+    console.log('Found', items.length, 'items in savedItems storage');
+    
+    // Log the items with matching ID for debugging
+    const matchingItems = items.filter(item => item.id === id);
+    console.log('Matching items in savedItems:', matchingItems);
+    
+    const newItems = items.filter(item => item.id !== id);
+    
+    // If we found and removed the item from savedItems
+    if (items.length !== newItems.length) {
+      console.log('Item found in savedItems, removing...');
       chrome.storage.local.set({savedItems: newItems}, function() {
         console.log('Item deleted from savedItems:', id);
-        // Reload the items to refresh the view
-        loadSavedItems();
+        showDeleteSuccessNotification(notification);
+        setTimeout(() => loadSavedItems(), 300); // Short delay before reload
+      });
+      return;
+    }
+    
+    console.log('Item not found in savedItems, checking savedTextItems...');
+    
+    // If not found in savedItems, try savedTextItems
+    chrome.storage.local.get(['savedTextItems'], function(result) {
+      const items = result.savedTextItems || [];
+      console.log('Found', items.length, 'items in savedTextItems storage');
+      
+      // Log the items with matching ID for debugging
+      const matchingItems = items.filter(item => item.id === id);
+      console.log('Matching items in savedTextItems:', matchingItems);
+      
+      const newItems = items.filter(item => item.id !== id);
+      
+      // If we found and removed the item from savedTextItems
+      if (items.length !== newItems.length) {
+        console.log('Item found in savedTextItems, removing...');
+        chrome.storage.local.set({savedTextItems: newItems}, function() {
+          console.log('Item deleted from savedTextItems:', id);
+          showDeleteSuccessNotification(notification);
+          setTimeout(() => loadSavedItems(), 300); // Short delay before reload
+        });
+        return;
+      }
+      
+      console.log('Item not found in savedTextItems, checking savedHighlights...');
+      
+      // If not found in savedTextItems, try savedHighlights
+      chrome.storage.local.get(['savedHighlights'], function(result) {
+        const items = result.savedHighlights || [];
+        console.log('Found', items.length, 'items in savedHighlights storage');
+        
+        // Log the items with matching ID for debugging
+        const matchingItems = items.filter(item => item.id === id);
+        console.log('Matching items in savedHighlights:', matchingItems);
+        
+        const newItems = items.filter(item => item.id !== id);
+        
+        // If we found and removed the item from savedHighlights
+        if (items.length !== newItems.length) {
+          console.log('Item found in savedHighlights, removing...');
+          chrome.storage.local.set({savedHighlights: newItems}, function() {
+            console.log('Item deleted from savedHighlights:', id);
+            showDeleteSuccessNotification(notification);
+            setTimeout(() => loadSavedItems(), 300); // Short delay before reload
+          });
+          return;
+        }
+        
+        // If we get here, the item wasn't found in any storage
+        console.error('Item not found in any storage:', id);
+        notification.textContent = 'Item not found!';
+        notification.classList.add('error');
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+          loadSavedItems(); // Reload anyway to ensure UI is consistent
+        }, 2000);
       });
     });
-  }
+  });
+}
+
+// Helper function to show success notification
+function showDeleteSuccessNotification(notification) {
+  notification.textContent = 'Item deleted successfully!';
+  notification.classList.add('success');
+  setTimeout(() => {
+    notification.classList.add('fade-out');
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 1500);
 }
 
 // Function to delete all items
