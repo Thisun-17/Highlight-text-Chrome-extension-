@@ -167,25 +167,27 @@ function createItemCard(item) {
   textElement.textContent = item.text;
   cardContent.appendChild(textElement);
   
-  // Add notes if available
-  if (item.notes || (item.content && item.content.notes)) {
-    const notesText = item.notes || item.content.notes;
-    if (notesText && notesText.trim() !== '') {
-      const notesElement = document.createElement('div');
-      notesElement.className = 'item-notes';
-      
-      const notesLabel = document.createElement('span');
-      notesLabel.className = 'notes-label';
-      notesLabel.textContent = 'Note: ';
-      
-      const notesContent = document.createElement('span');
-      notesContent.className = 'notes-content';
-      notesContent.textContent = notesText;
-      
-      notesElement.appendChild(notesLabel);
-      notesElement.appendChild(notesContent);
-      cardContent.appendChild(notesElement);
-    }
+  // Add notes if available - check all possible locations
+  const notesText = item.notes || 
+                   (item.content && item.content.notes) || 
+                   (item.content && item.content.content && item.content.content.notes) || 
+                   "";
+                   
+  if (notesText && notesText.trim() !== '') {
+    const notesElement = document.createElement('div');
+    notesElement.className = 'item-notes';
+    
+    const notesLabel = document.createElement('span');
+    notesLabel.className = 'notes-label';
+    notesLabel.textContent = 'Note: ';
+    
+    const notesContent = document.createElement('span');
+    notesContent.className = 'notes-content';
+    notesContent.textContent = notesText;
+    
+    notesElement.appendChild(notesLabel);
+    notesElement.appendChild(notesContent);
+    cardContent.appendChild(notesElement);
   }
   
   // Add source information if available

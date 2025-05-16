@@ -699,7 +699,8 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'text',
         content: content,
         timestamp: new Date().toISOString(),
-        date: new Date().toISOString() // For backwards compatibility
+        date: new Date().toISOString(), // For backwards compatibility
+        notes: content.notes || "" // Add notes directly at the root level to ensure it's accessible
       };
       
       // Check for duplicates

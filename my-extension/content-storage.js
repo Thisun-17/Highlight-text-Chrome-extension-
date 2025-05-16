@@ -95,7 +95,8 @@ function loadAllSavedContent() {
               url: item.content?.url || item.content?.pageUrl || '',
               title: item.content?.title || item.content?.pageTitle || '',
               timestamp: item.timestamp || item.date || new Date().toISOString(),
-              isLegacy: true
+              isLegacy: true,
+              notes: item.notes || item.content?.notes || (item.content?.content?.notes) || ''
             };
           }
           
@@ -108,7 +109,8 @@ function loadAllSavedContent() {
             pageTitle: item.content?.pageTitle || '',
             color: item.content?.color,
             timestamp: item.timestamp || item.date || new Date().toISOString(),
-            isLegacy: true
+            isLegacy: true,
+            notes: item.notes || (item.content?.notes) || (item.content?.content?.notes) || ''
           };
         }),
         
@@ -121,7 +123,8 @@ function loadAllSavedContent() {
             pageUrl: item.pageUrl,
             pageTitle: item.pageTitle,
             timestamp: item.timestamp,
-            isHighlight: false
+            isHighlight: false,
+            notes: item.notes || ''
           };
         }),
         
@@ -135,7 +138,8 @@ function loadAllSavedContent() {
             pageTitle: item.pageTitle,
             color: item.color,
             timestamp: item.timestamp,
-            isHighlight: true
+            isHighlight: true,
+            notes: item.notes || ''
           };
         })
       ];
