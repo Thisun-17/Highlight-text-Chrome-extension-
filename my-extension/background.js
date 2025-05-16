@@ -58,9 +58,26 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
                 url: tab.url
               });
             }, 500);
+            
+            // Try again after a longer delay for pages that load slowly
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, {
+                action: 'restoreHighlights',
+                url: tab.url
+              });
+            }, 2000);
           });
         } else {
           console.log('Restore highlights message sent successfully');
+          
+          // Send another restoreHighlights message after a delay to handle 
+          // cases where the page content might change dynamically
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tabId, {
+              action: 'restoreHighlights',
+              url: tab.url
+            });
+          }, 2000);
         }
       });
     }, 1000);
