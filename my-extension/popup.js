@@ -777,6 +777,144 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Save Full Article functionality
+  const saveFullArticleBtn = document.getElementById('saveFullArticle');
+  if (saveFullArticleBtn) {
+    logDebug("Save Full Article button found, setting up click handler");
+    
+    saveFullArticleBtn.addEventListener('click', function() {
+      logDebug("Save Full Article button clicked");
+      
+      // Get current tab info
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs[0]) {
+          showStatus('Unable to access the active tab!', true);
+          logDebug("Error: Unable to access active tab");
+          return;
+        }
+        
+        // Extract article content from the page
+        chrome.scripting.executeScript({
+          target: {tabId: tabs[0].id},
+          function: extractArticleContent
+        }, function(results) {
+          if (chrome.runtime.lastError) {
+            showStatus('Error extracting article content', true);
+            logDebug(`Error: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+          
+          if (results && results[0] && results[0].result) {
+            const articleContent = results[0].result;
+            logDebug(`Extracted article content: ${articleContent.text.substring(0, 50)}...`);
+            
+            const noteText = noteInput ? noteInput.value.trim() : "";
+            
+            // Create content object with article text and notes
+            const content = {
+              text: articleContent.text,
+              html: articleContent.html,
+              notes: noteText,
+              pageUrl: tabs[0].url,
+              pageTitle: tabs[0].title,
+              isFullArticle: true
+            };
+            
+            // Save the full article
+            saveToStorage('article', content, function() {
+              showStatus('Full article saved to library!');
+              // Clear note input after saving
+              if (noteInput) noteInput.value = '';
+            });
+          } else {
+            showStatus('No article content found', true);
+            logDebug("Error: No article content extracted");
+          }
+        });
+      });
+    });
+  } else {
+    logDebug("ERROR: Save Full Article button not found!");
+  }
+  
+  // Function to extract article content from the page
+  function extractArticleContent() {
+    try {
+      // Try to find the main article content
+      const possibleArticleSelectors = [
+        'article',
+        '[role="article"]',
+        '.article',
+        '.post-content',
+        '.entry-content',
+        '.content',
+        'main',
+        '#main',
+        '.main-content',
+        '.post',
+        '.blog-post'
+      ];
+      
+      let articleElement = null;
+      
+      // Try each selector until we find a match
+      for (const selector of possibleArticleSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          // Pick the element with the most text content
+          articleElement = Array.from(elements).sort((a, b) => 
+            b.textContent.trim().length - a.textContent.trim().length
+          )[0];
+          break;
+        }
+      }
+      
+      // If no article element was found, use the body as fallback
+      if (!articleElement) {
+        // Exclude common non-content areas
+        const nonContentSelectors = [
+          'header', 'footer', 'nav', 'aside', 
+          '.header', '.footer', '.nav', '.sidebar',
+          '.comments', '.menu', '.navigation',
+          '[role="banner"]', '[role="navigation"]', '[role="complementary"]'
+        ];
+        
+        // Create a deep clone of the body to avoid modifying the actual page
+        const bodyClone = document.body.cloneNode(true);
+        
+        // Remove non-content elements from the clone
+        nonContentSelectors.forEach(selector => {
+          const elements = bodyClone.querySelectorAll(selector);
+          elements.forEach(element => element.remove());
+        });
+        
+        articleElement = bodyClone;
+      }
+      
+      // Clean up the article content (remove scripts, styles, etc.)
+      const cleanupSelectors = ['script', 'style', 'noscript', 'iframe', 'svg', '.ad', '.ads', '.advertisement'];
+      cleanupSelectors.forEach(selector => {
+        const elements = articleElement.querySelectorAll(selector);
+        elements.forEach(element => element.remove());
+      });
+      
+      // Get the clean HTML and text content
+      const htmlContent = articleElement.innerHTML;
+      const textContent = articleElement.textContent.trim()
+        .replace(/\s+/g, ' ')  // Replace multiple spaces with a single space
+        .replace(/\n+/g, '\n') // Replace multiple new lines with a single new line
+        .substring(0, 100000); // Limit to 100,000 characters to avoid storage issues
+      
+      return {
+        html: htmlContent,
+        text: textContent
+      };
+    } catch (error) {
+      console.error("Error extracting article content:", error);
+      return null;
+    }
+  }
+
   // View Library button functionality
   const viewLibraryBtn = document.getElementById('viewLibrary');
   if (viewLibraryBtn) {
