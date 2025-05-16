@@ -176,8 +176,8 @@ function forceHighlightText(text, highlightId) {
               (node.parentElement.tagName === 'SCRIPT' || 
                node.parentElement.tagName === 'STYLE' ||
                  node.parentElement.tagName === 'NOSCRIPT' ||
-                 node.parentElement.className && 
-               node.parentElement.className.includes('data-flowx-highlight'))) {
+                 node.parentElement.classList && 
+               node.parentElement.classList.contains('data-flowx-highlight'))) {
             return NodeFilter.FILTER_REJECT;
           }
           return node.textContent.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
@@ -269,9 +269,10 @@ function forceHighlightText(text, highlightId) {
           
           // Replace text with highlighted version
           const originalHTML = container.innerHTML;
+          const regex = new RegExp(`(${escapedText})`, 'g');
           const newHTML = originalHTML.replace(
-            new RegExp(escapedText, 'g'),
-            `<span class="data-flowx-highlight" style="background-color: ${lightGreenColor};" data-highlight-id="${id}">${text}</span>`
+            regex,
+            `<span class="data-flowx-highlight" style="background-color: #90EE90;" data-highlight-id="${id}">$1</span>`
           );
           
           // Only apply if we made a change
@@ -464,9 +465,7 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', setupMutationObserver);
 } else {
   setupMutationObserver();
-}
-
-// Improved function to restore highlights from storage when page loads
+}  // Improved function to restore highlights from storage when page loads
 function restoreHighlightsOnPageLoad() {
   const currentUrl = window.location.href;
   console.log("🔄 Attempting to restore highlights for:", currentUrl);
@@ -499,6 +498,11 @@ function restoreHighlightsOnPageLoad() {
           
         // Check if this is a highlight
           const isHighlight = 
+          item.type === 'text' || 
+            item.type === 'highlight' || 
+          (item.content.metadata && item.content.metadata.isHighlight) ||
+          item.content.wasHighlighted === true ||
+          !!item.content.highlightId;
           item.type === 'text' || 
             item.type === 'highlight' || 
           (item.content.metadata && item.content.metadata.isHighlight) ||
@@ -588,6 +592,12 @@ function setupRestorationOnLoad() {
     console.log("Delayed restoration - final attempt");
     restoreHighlightsOnPageLoad();
   }, 3000);
+  
+  // Fourth try: Set up a final check for highlights
+  setTimeout(function() {
+    console.log("Final restoration check");
+    restoreHighlightsOnPageLoad();
+  }, 5000);
 }
 
 // Run the restoration setup immediately
