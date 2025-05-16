@@ -662,6 +662,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       return true;
     }
     
+    // Handler for extracting the entire article content
+    else if (request.action === "extractEntireArticle") {
+      console.log("Extracting entire article content");
+      const articleContent = extractArticleContent();
+      sendResponse({success: true, articleContent: articleContent});
+      return true;
+    }
+    
     // Handle other messages...
     // ... existing code ...
 
