@@ -12,9 +12,6 @@ window.extractFullPageContent = function() {
     const pageUrl = window.location.href;
     const siteName = getMetaContent("site_name") || window.location.hostname;
     
-    // Get main image - first try OpenGraph image
-    let mainImage = getMetaContent("og:image") || getMetaContent("twitter:image");
-    
     // Try to find the main article content
     const possibleArticleSelectors = [
       'article',
@@ -83,50 +80,6 @@ window.extractFullPageContent = function() {
     
     // Get a short excerpt for display
     const excerpt = mainContent.substring(0, 150) + (mainContent.length > 150 ? '...' : '');
-      // If no OpenGraph image, try to find the largest image in the article content
-    if (!mainImage && articleElement) {
-      const images = articleElement.querySelectorAll('img');
-      let largestImage = null;
-      let largestArea = 0;
-      
-      images.forEach(img => {
-        if (img.naturalWidth && img.naturalHeight) {
-          const area = img.naturalWidth * img.naturalHeight;
-          if (area > largestArea && area > 10000) { // Ignore tiny images
-            largestArea = area;
-            largestImage = img;
-          }
-        }
-      });
-      
-      if (largestImage && largestImage.src) {
-        mainImage = largestImage.src;
-      }
-    }
-    
-    // If still no image, look for hero/banner images throughout the page
-    if (!mainImage) {
-      const possibleHeroImages = document.querySelectorAll('header img, .hero img, .banner img, .featured-image img');
-      if (possibleHeroImages.length > 0) {
-        mainImage = possibleHeroImages[0].src;
-      }
-    }
-    
-    // As a fallback, get any large image from the page
-    if (!mainImage) {
-      const allImages = document.querySelectorAll('img');
-      const largeImages = Array.from(allImages).filter(img => 
-        img.naturalWidth > 300 && img.naturalHeight > 200 && !img.src.includes('avatar') && !img.src.includes('icon')
-      );
-      
-      if (largeImages.length > 0) {
-        // Sort by size (largest first)
-        largeImages.sort((a, b) => 
-          (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight)
-        );
-        mainImage = largeImages[0].src;
-      }
-    }
     
     return {
       title: pageTitle,
@@ -136,8 +89,7 @@ window.extractFullPageContent = function() {
       content: mainContent,
       excerpt: excerpt,
       savedAt: new Date().toISOString(),
-      type: 'fullpage',
-      imageUrl: mainImage || null
+      type: 'fullpage'
     };
   } catch (e) {
     console.error('Error extracting page content:', e);
