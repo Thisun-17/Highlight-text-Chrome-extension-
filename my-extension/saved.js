@@ -104,29 +104,83 @@ function createItemCard(item) {
     textElement.className = 'fullpage-text';
     card.classList.add('article-card');
   }
-  
-  // Get text content based on item type and structure
+    // Handle different item types
   if (item.type === 'fullpage') {
-    // For full page content, use excerpt in card view
+    // Create an article-style layout for full page content
+    card.classList.add('article-card');
+    
+    // Create title element (larger and more prominent)
+    const titleElement = document.createElement('h2');
+    titleElement.className = 'article-title';
+    titleElement.textContent = item.title || (item.content && item.content.title) || 'Saved Article';
+    cardContent.appendChild(titleElement);
+    
+    // Create website link with domain name
+    const websiteElement = document.createElement('div');
+    websiteElement.className = 'article-website';
+    
+    // Try to get the domain name
+    let domain = '';
+    try {
+      const url = item.url || item.pageUrl || '';
+      const urlObj = new URL(url);
+      domain = urlObj.hostname;
+    } catch (e) {
+      domain = item.siteName || '';
+    }
+    
+    websiteElement.textContent = domain;
+    cardContent.appendChild(websiteElement);
+    
+    // If we have an image, display it prominently
+    const imageUrl = item.imageUrl || (item.content && item.content.imageUrl);
+    if (imageUrl) {
+      const imageContainer = document.createElement('div');
+      imageContainer.className = 'article-image-container';
+      
+      const image = document.createElement('img');
+      image.className = 'article-image';
+      image.src = imageUrl;
+      image.alt = item.title || 'Article image';
+      image.onerror = function() {
+        // Hide the container if image fails to load
+        imageContainer.style.display = 'none';
+      };
+      
+      imageContainer.appendChild(image);
+      cardContent.appendChild(imageContainer);
+    }
+    
+    // Get excerpt for description
+    let excerpt = '';
     if (item.excerpt) {
-      textElement.textContent = item.excerpt;
+      excerpt = item.excerpt;
     } else if (item.content && item.content.excerpt) {
-      textElement.textContent = item.content.excerpt;
+      excerpt = item.content.excerpt;
     } else if (item.content && item.content.content) {
-      // If no excerpt, show beginning of content
+      // If no excerpt, create one from the content
       const fullContent = item.content.content;
-      textElement.textContent = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
+      excerpt = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
+    } else if (item.description || (item.content && item.content.description)) {
+      excerpt = item.description || item.content.description;
     } else {
-      textElement.textContent = item.text || 'Full page content saved';
+      excerpt = 'Full page content saved';
+    }
+    
+    // Only add excerpt if we don't have an image, to match the screenshot layout
+    if (!imageUrl) {
+      textElement.className = 'article-excerpt';
+      textElement.textContent = excerpt;
+      cardContent.appendChild(textElement);
     }
   } else {
     // Standard text handling for other item types
     textElement.textContent = item.text || 
       (item.content && typeof item.content === 'string' ? item.content : 
       (item.content && item.content.text ? item.content.text : ''));
-  }
+    cardContent.appendChild(textElement);  }
   
-  cardContent.appendChild(textElement);
+  // Note: textElement is already appended in the conditional blocks above
   
   // Add notes if available - check all possible locations
   const notesText = item.notes || 
