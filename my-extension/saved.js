@@ -262,14 +262,13 @@ function createItemCard(item) {
       }
     };
     
-    if (dropdown.classList.contains('show')) {
-      // Ensure dropdown is within viewport
+    if (dropdown.classList.contains('show')) {      // Ensure dropdown is within viewport
       const dropdownRect = dropdown.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
       
-      if (dropdownRect.bottom > viewportHeight) {
-        dropdown.style.top = 'auto';
-        dropdown.style.bottom = '36px';
+      // If the dropdown would appear outside the viewport at the top
+      if (dropdownRect.top < 0) {
+        dropdown.style.bottom = 'auto';
+        dropdown.style.top = '36px';
       }
       
       // Position the dropdown
@@ -280,12 +279,11 @@ function createItemCard(item) {
       }, 0);
     }
   });
-  
-  // Position the dropdown relative to the menu button
+    // Position the dropdown relative to the menu button
   const positionDropdown = () => {
     const buttonRect = menuButton.getBoundingClientRect();
     dropdown.style.position = 'fixed';
-    dropdown.style.top = `${buttonRect.bottom}px`;
+    dropdown.style.bottom = `${window.innerHeight - buttonRect.top}px`;
     dropdown.style.right = `${window.innerWidth - buttonRect.right}px`;
   };
   

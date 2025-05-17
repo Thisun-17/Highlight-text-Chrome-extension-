@@ -319,7 +319,7 @@ h1 {
 /* Button styling for card actions */
 .card-actions {
   position: absolute;
-  top: 5px;
+  bottom: 5px;
   right: 5px;
   display: flex;
   justify-content: flex-end;
@@ -478,7 +478,7 @@ h1 {
 .dropdown-menu {
   position: absolute;
   right: 0;
-  top: 36px;
+  bottom: 36px; /* Position above the button now */
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
