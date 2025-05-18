@@ -80,11 +80,11 @@ window.extractFullPageContent = function() {
     
     // Get a short excerpt for display
     const excerpt = mainContent.substring(0, 150) + (mainContent.length > 150 ? '...' : '');
-    
-    return {
+      return {
       title: pageTitle,
       description: pageDescription,
       url: pageUrl,
+      pageUrl: pageUrl,  // Adding pageUrl for consistency
       siteName: siteName,
       content: mainContent,
       excerpt: excerpt,
@@ -92,11 +92,11 @@ window.extractFullPageContent = function() {
       type: 'fullpage'
     };
   } catch (e) {
-    console.error('Error extracting page content:', e);
-    return {
+    console.error('Error extracting page content:', e);    return {
       error: e.message,
       title: document.title,
       url: window.location.href,
+      pageUrl: window.location.href, // Adding pageUrl for consistency
       excerpt: 'Error extracting content'
     };
   }
