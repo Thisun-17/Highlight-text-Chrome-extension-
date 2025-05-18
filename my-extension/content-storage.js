@@ -100,13 +100,31 @@ function loadAllSavedContent() {
             };
           }
           
+          // Handle full page type
+          if (item.type === 'fullpage') {
+            return {
+              id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
+              type: 'fullpage',
+              text: item.content?.text || item.content?.content || item.content?.excerpt || '',
+              pageUrl: item.content?.pageUrl || item.content?.url || '',
+              pageTitle: item.content?.pageTitle || item.content?.title || '',
+              url: item.content?.url || item.content?.pageUrl || '',
+              title: item.content?.title || item.content?.pageTitle || '',
+              excerpt: item.content?.excerpt || '',
+              timestamp: item.timestamp || item.date || new Date().toISOString(),
+              isLegacy: true,
+              notes: item.notes || item.content?.notes || (item.content?.content?.notes) || ''
+            };
+          }
+          
           // Handle other types
           return {
             id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
             type: item.type,
             text: item.content?.text || (typeof item.content === 'string' ? item.content : ''),
-            pageUrl: item.content?.pageUrl || '',
+            pageUrl: item.content?.pageUrl || item.content?.url || '',
             pageTitle: item.content?.pageTitle || '',
+            url: item.content?.url || item.content?.pageUrl || '',
             color: item.content?.color,
             timestamp: item.timestamp || item.date || new Date().toISOString(),
             isLegacy: true,
