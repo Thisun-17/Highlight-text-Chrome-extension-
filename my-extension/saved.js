@@ -5,7 +5,35 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Then load items for display
   loadSavedItems();
+  
+  // Set up tab navigation
+  setupTabNavigation();
 });
+
+// Function to handle tab navigation
+function setupTabNavigation() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Get the tab to show
+      const tabId = this.getAttribute('data-tab');
+      
+      // Remove active class from all buttons and tab panes
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to current button and tab pane
+      this.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    });
+  });
+}
 
 
 
@@ -125,110 +153,111 @@ function createItemCard(item) {
       (item.content && typeof item.content === 'string' ? item.content : 
       (item.content && item.content.text ? item.content.text : ''));
   }
-  
-  cardContent.appendChild(textElement);
-  
-  // Add notes if available - check all possible locations
-  const notesText = item.notes || 
-                   (item.content && item.content.notes) || 
-                   (item.content && item.content.content && item.content.content.notes) || 
-                   "";
-                   
-  if (notesText && notesText.trim() !== '') {
-    const notesElement = document.createElement('div');
-    notesElement.className = 'item-notes';
-    
-    const notesLabel = document.createElement('span');
-    notesLabel.className = 'notes-label';
-    notesLabel.textContent = 'Note: ';
-    
-    const notesContent = document.createElement('span');
-    notesContent.className = 'notes-content';
-    notesContent.textContent = notesText;
-    
-    notesElement.appendChild(notesLabel);
-    notesElement.appendChild(notesContent);
-    cardContent.appendChild(notesElement);
-  }
-    // Add source information if available
-  if ((item.pageUrl || item.url) && (item.pageTitle || item.title)) {
-    // First, add the title as a separate element
+
+  // Add title
+  const title = item.title || item.pageTitle;
+  if (title) {
     const titleElement = document.createElement('div');
-    titleElement.className = 'article-source';
-    titleElement.textContent = item.title || item.pageTitle;
+    titleElement.className = 'card-title';
+    titleElement.textContent = title;
     cardContent.appendChild(titleElement);
+  }
+
+  // Add description
+  let description = item.excerpt || item.description || (item.content && item.content.excerpt) || (item.content && item.content.content && item.content.content.excerpt) || item.text || (item.content && typeof item.content === 'string' ? item.content : (item.content && item.content.text ? item.content.text : ''));
+
+  // Add notes
+  const notes = item.notes || (item.content && item.content.notes);
+  if (notes) {
+    description = (description ? description + '\n\n' : '') + 'Note: ' + notes;
+  }
+
+  if (description) {
+    const descriptionElement = document.createElement('div');
+    descriptionElement.className = 'card-description';
+    descriptionElement.textContent = description;
+    cardContent.appendChild(descriptionElement);
+  }  // Add URL - enhanced to ensure full page URLs are displayed
+  let url = item.pageUrl || item.url || (item.content && item.content.pageUrl) || (item.content && item.content.url);
+  
+  // Special handling for full page items to ensure URL is always displayed
+  if (item.type === 'fullpage' && !url) {
+    // Try even harder to find a URL for full page content
+    url = item.content?.url || item.content?.pageUrl || 
+          (item.content && item.content.content && item.content.content.url) ||
+          (item.content && item.content.content && item.content.content.pageUrl);
+  }
+    if (url) {
+    const urlContainer = document.createElement('div');
+    urlContainer.className = 'url-container';
     
-    // Then add the source link
-    const sourceElement = document.createElement('div');
-    sourceElement.className = 'source';
+    // Create icon for URL
+    const urlIcon = document.createElement('i');
+    urlIcon.className = 'fas fa-link';
+    urlIcon.style.marginRight = '6px';
+    urlIcon.style.fontSize = '12px';
+    urlContainer.appendChild(urlIcon);
     
-    // Get the appropriate URL
-    const url = item.pageUrl || item.url;
-    
-    // Try to add favicon
-    try {
-      const faviconUrl = new URL(url);
-      const faviconImg = document.createElement('img');
-      faviconImg.src = `https://www.google.com/s2/favicons?domain=${faviconUrl.hostname}`;
-      faviconImg.className = 'favicon';
-      faviconImg.alt = '';
-      sourceElement.appendChild(faviconImg);
-      sourceElement.appendChild(document.createTextNode(' '));
-    } catch (e) {
-      console.log('Could not add favicon');
-    }
-    
-    // Create URL display text
-    let displayUrl = url;
+    const urlElement = document.createElement('a');
+    urlElement.className = 'card-url';
+    urlElement.href = url;
     try {
       const urlObj = new URL(url);
-      displayUrl = urlObj.hostname;
+      urlElement.textContent = urlObj.hostname;
     } catch (e) {
-      console.log('Could not parse URL');
+      urlElement.textContent = url;
     }
+    urlElement.target = '_blank';
+    urlContainer.appendChild(urlElement);
     
-    const sourceLink = document.createElement('a');
-    sourceLink.href = url;
-    sourceLink.textContent = displayUrl;
-    sourceLink.target = '_blank';
-    
-    sourceElement.appendChild(sourceLink);
-    cardContent.appendChild(sourceElement);
+    cardContent.appendChild(urlContainer);
   }
-  
+
+  // Add thumbnail
+  if (item.thumbnail) {
+    const thumbnailElement = document.createElement('div');
+    thumbnailElement.className = 'card-thumbnail';
+    const imgElement = document.createElement('img');
+    imgElement.src = item.thumbnail;
+    imgElement.alt = 'Thumbnail';
+    thumbnailElement.appendChild(imgElement);
+    card.appendChild(thumbnailElement);
+  }
+
   // Create actions container for buttons
   const cardActions = document.createElement('div');
   cardActions.className = 'card-actions';
-  
+
   // Create menu button with dropdown
   const menuButton = document.createElement('button');
   menuButton.className = 'card-action-btn menu-btn';
   menuButton.innerHTML = '<i class="fas fa-ellipsis-h"></i>';
   menuButton.title = "Menu options";
   menuButton.setAttribute('aria-label', 'Item options menu');
-  
+
   // Create unique ID for this dropdown
   const dropdownId = `dropdown-${item.id}`;
   menuButton.dataset.dropdownId = dropdownId;
-  
+
   // Create dropdown menu
   const dropdown = document.createElement('div');
   dropdown.className = 'dropdown-menu';
   dropdown.id = dropdownId;
-  
+
   // Store the type based on item properties
   const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
-  
+
   // Add menu items - only keeping Add note and Delete as requested
   const menuItems = [
     { icon: 'fa-sticky-note', text: 'Add note', action: () => addNoteToItem(item) },
+    { icon: 'fa-share-alt', text: 'Share', action: () => shareItem(item) },
     { icon: 'fa-trash-alt', text: 'Delete', action: () => {
       if (confirm('Are you sure you want to delete this item?')) {
         deleteItem(item.id, itemType);
       }
     }}
   ];
-  
+
   menuItems.forEach(menuItem => {
     const item = document.createElement('button');
     item.className = 'dropdown-item';
@@ -240,20 +269,20 @@ function createItemCard(item) {
     });
     dropdown.appendChild(item);
   });
-  
+
   // Toggle dropdown on menu button click
   menuButton.addEventListener('click', function(e) {
     e.stopPropagation();
-    
+
     // Close all other open dropdowns first
     document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
       if (menu.id !== dropdownId) {
         menu.classList.remove('show');
       }
     });
-    
+
     dropdown.classList.toggle('show');
-    
+
     // Close dropdown when clicking elsewhere
     const closeDropdown = function(event) {
       if (!menuButton.contains(event.target) && !dropdown.contains(event.target)) {
@@ -261,19 +290,19 @@ function createItemCard(item) {
         document.removeEventListener('click', closeDropdown);
       }
     };
-    
+
     if (dropdown.classList.contains('show')) {      // Ensure dropdown is within viewport
       const dropdownRect = dropdown.getBoundingClientRect();
-      
+
       // If the dropdown would appear outside the viewport at the top
       if (dropdownRect.top < 0) {
         dropdown.style.bottom = 'auto';
         dropdown.style.top = '36px';
       }
-      
+
       // Position the dropdown
       positionDropdown();
-      
+
       setTimeout(() => {
         document.addEventListener('click', closeDropdown);
       }, 0);
@@ -286,20 +315,31 @@ function createItemCard(item) {
     dropdown.style.bottom = `${window.innerHeight - buttonRect.top}px`;
     dropdown.style.right = `${window.innerWidth - buttonRect.right}px`;
   };
-  
+
   // Position initially and on window resize
   window.addEventListener('resize', positionDropdown);
   menuButton.addEventListener('click', positionDropdown);
-  
+
   // Add the menu button and dropdown to card actions
   cardActions.appendChild(menuButton);
   // Append dropdown to the body instead of card to avoid clipping issues
   document.body.appendChild(dropdown);
-  
+
   // Add the actions to the card
   card.appendChild(cardContent);
   card.appendChild(cardActions);
-  
+
+  // Add thumbnail
+  if (item.thumbnail) {
+    const thumbnailElement = document.createElement('div');
+    thumbnailElement.className = 'card-thumbnail';
+    const imgElement = document.createElement('img');
+    imgElement.src = item.thumbnail;
+    imgElement.alt = 'Thumbnail';
+    thumbnailElement.appendChild(imgElement);
+    card.appendChild(thumbnailElement);
+  }
+
   return card;
 }
 
