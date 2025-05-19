@@ -98,31 +98,17 @@ function createItemCard(item) {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.id = item.id;
-  card.dataset.type = item.type;
   
-  // Create Widihata logo section
-  const widihataSection = document.createElement('div');
-  widihataSection.className = 'card-widihata';
-  
-  const widihataLogo = document.createElement('img');
-  widihataLogo.className = 'widihata-logo';
-  widihataLogo.src = 'icon.png'; // Using the extension icon as the Widihata logo
-  widihataLogo.alt = 'Widihata';
-  widihataSection.appendChild(widihataLogo);
-  
-  card.appendChild(widihataSection);
-  
-  // Create content section
+  // Create card content container
   const cardContent = document.createElement('div');
   cardContent.className = 'card-content';
   
-  // Create text paragraph
-  const textElement = document.createElement('p');
-  
-  // Apply special styling for different types of content
+  // Add text content
+  const textElement = document.createElement('div');
+  textElement.className = 'card-text';
+  // Style based on item type
   if (item.type === 'highlight' || item.isHighlight) {
     textElement.className = 'highlight-text';
-    textElement.style.backgroundColor = 'var(--highlight-bg)';
     card.dataset.isHighlight = "true";
   }
   else if (item.type === 'article') {
@@ -132,106 +118,60 @@ function createItemCard(item) {
     textElement.className = 'fullpage-text';
     card.classList.add('article-card');
   }
-  
-  // Get text content based on item type and structure
-  if (item.type === 'fullpage') {
-    // For full page content, use excerpt in card view
-    if (item.excerpt) {
-      textElement.textContent = item.excerpt;
-    } else if (item.content && item.content.excerpt) {
-      textElement.textContent = item.content.excerpt;
-    } else if (item.content && item.content.content) {
-      // If no excerpt, show beginning of content
-      const fullContent = item.content.content;
-      textElement.textContent = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
-    } else {
-      textElement.textContent = item.text || 'Full page content saved';
-    }
-  } else {
-    // Standard text handling for other item types
-    textElement.textContent = item.text || 
-      (item.content && typeof item.content === 'string' ? item.content : 
-      (item.content && item.content.text ? item.content.text : ''));
-  }
 
-  // Add title
-  const title = item.title || item.pageTitle;
-  if (title) {
+  // Set text content
+  textElement.textContent = item.text || 'No text content';
+  cardContent.appendChild(textElement);
+
+  // Add title if available
+  if (item.pageTitle) {
     const titleElement = document.createElement('div');
     titleElement.className = 'card-title';
-    titleElement.textContent = title;
+    titleElement.textContent = item.pageTitle;
     cardContent.appendChild(titleElement);
   }
 
-  // Add description
-  let description = item.excerpt || item.description || (item.content && item.content.excerpt) || (item.content && item.content.content && item.content.content.excerpt) || item.text || (item.content && typeof item.content === 'string' ? item.content : (item.content && item.content.text ? item.content.text : ''));
-
-  // Add notes
-  const notes = item.notes || (item.content && item.content.notes);
-  if (notes) {
-    description = (description ? description + '\n\n' : '') + 'Note: ' + notes;
+  // Add notes if they exist
+  if (item.notes && item.notes.trim()) {
+    const notesContainer = document.createElement('div');
+    notesContainer.className = 'item-notes';
+    
+    const notesLabel = document.createElement('span');
+    notesLabel.className = 'notes-label';
+    notesLabel.textContent = 'Note: ';
+    
+    const notesContent = document.createElement('span');
+    notesContent.className = 'notes-content';
+    notesContent.textContent = item.notes;
+    
+    notesContainer.appendChild(notesLabel);
+    notesContainer.appendChild(notesContent);
+    cardContent.appendChild(notesContainer);
   }
 
-  if (description) {
-    const descriptionElement = document.createElement('div');
-    descriptionElement.className = 'card-description';
-    descriptionElement.textContent = description;
-    cardContent.appendChild(descriptionElement);
-  }  // Add URL - enhanced to ensure full page URLs are displayed
-  let url = item.pageUrl || item.url || (item.content && item.content.pageUrl) || (item.content && item.content.url);
-  
-  // Special handling for full page items to ensure URL is always displayed
-  if (item.type === 'fullpage' && !url) {
-    // Try even harder to find a URL for full page content
-    url = item.content?.url || item.content?.pageUrl || 
-          (item.content && item.content.content && item.content.content.url) ||
-          (item.content && item.content.content && item.content.content.pageUrl);
+  // Add timestamp
+  if (item.timestamp) {
+    const date = new Date(item.timestamp);
+    const timeElement = document.createElement('div');
+    timeElement.className = 'timestamp';
+    timeElement.textContent = date.toLocaleString();
+    cardContent.appendChild(timeElement);
   }
-    if (url) {
-    const urlContainer = document.createElement('div');
-    urlContainer.className = 'url-container';
-    
-    // Create icon for URL
-    const urlIcon = document.createElement('i');
-    urlIcon.className = 'fas fa-link';
-    urlIcon.style.marginRight = '6px';
-    urlIcon.style.fontSize = '12px';
-    urlContainer.appendChild(urlIcon);
-    
+
+  // Add URL if available
+  if (item.pageUrl) {
     const urlElement = document.createElement('a');
     urlElement.className = 'card-url';
-    urlElement.href = url;
-    try {
-      const urlObj = new URL(url);
-      urlElement.textContent = urlObj.hostname;
-    } catch (e) {
-      urlElement.textContent = url;
-    }
+    urlElement.href = item.pageUrl;
+    urlElement.textContent = new URL(item.pageUrl).hostname;
     urlElement.target = '_blank';
-    urlContainer.appendChild(urlElement);
-    
-    cardContent.appendChild(urlContainer);
+    cardContent.appendChild(urlElement);
   }
 
-  // Add thumbnail
-  if (item.thumbnail) {
-    const thumbnailElement = document.createElement('div');
-    thumbnailElement.className = 'card-thumbnail';
-    const imgElement = document.createElement('img');
-    imgElement.src = item.thumbnail;
-    imgElement.alt = 'Thumbnail';
-    thumbnailElement.appendChild(imgElement);
-    card.appendChild(thumbnailElement);
-  }
-
-  // Create actions container for buttons
-  const cardActions = document.createElement('div');
-  cardActions.className = 'card-actions';
-
-  // Create menu button with dropdown
+  // Create menu button
   const menuButton = document.createElement('button');
-  menuButton.className = 'card-action-btn menu-btn';
-  menuButton.innerHTML = '<i class="fas fa-ellipsis-h"></i>';
+  menuButton.className = 'menu-btn';
+  menuButton.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
   menuButton.title = "Menu options";
   menuButton.setAttribute('aria-label', 'Item options menu');
 
@@ -247,9 +187,9 @@ function createItemCard(item) {
   // Store the type based on item properties
   const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
 
-  // Add menu items - only keeping Add note and Delete as requested
+  // Add menu items
   const menuItems = [
-    { icon: 'fa-sticky-note', text: 'Add note', action: () => addNoteToItem(item) },
+    { icon: 'fa-sticky-note', text: item.notes ? 'Edit note' : 'Add note', action: () => addNoteToItem(item) },
     { icon: 'fa-share-alt', text: 'Share', action: () => shareItem(item) },
     { icon: 'fa-trash-alt', text: 'Delete', action: () => {
       if (confirm('Are you sure you want to delete this item?')) {
@@ -258,8 +198,9 @@ function createItemCard(item) {
     }}
   ];
 
+  // Create menu items
   menuItems.forEach(menuItem => {
-    const item = document.createElement('button');
+    const item = document.createElement('div');
     item.className = 'dropdown-item';
     item.innerHTML = `<i class="fas ${menuItem.icon}"></i> ${menuItem.text}`;
     item.addEventListener('click', (e) => {
@@ -270,103 +211,97 @@ function createItemCard(item) {
     dropdown.appendChild(item);
   });
 
-  // Toggle dropdown on menu button click
-  menuButton.addEventListener('click', function(e) {
+  // Add menu button click handler
+  menuButton.addEventListener('click', (e) => {
     e.stopPropagation();
-
-    // Close all other open dropdowns first
-    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-      if (menu.id !== dropdownId) {
-        menu.classList.remove('show');
-      }
-    });
-
-    dropdown.classList.toggle('show');
-
-    // Close dropdown when clicking elsewhere
-    const closeDropdown = function(event) {
-      if (!menuButton.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.classList.remove('show');
-        document.removeEventListener('click', closeDropdown);
-      }
-    };
-
-    if (dropdown.classList.contains('show')) {      // Ensure dropdown is within viewport
-      const dropdownRect = dropdown.getBoundingClientRect();
-
-      // If the dropdown would appear outside the viewport at the top
-      if (dropdownRect.top < 0) {
-        dropdown.style.bottom = 'auto';
-        dropdown.style.top = '36px';
-      }
-
-      // Position the dropdown
-      positionDropdown();
-
-      setTimeout(() => {
-        document.addEventListener('click', closeDropdown);
-      }, 0);
+    const isVisible = dropdown.classList.contains('show');
+    
+    // Hide all other dropdowns first
+    document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
+    
+    // Toggle this dropdown
+    if (!isVisible) {
+      dropdown.classList.add('show');
     }
   });
-    // Position the dropdown relative to the menu button
-  const positionDropdown = () => {
-    const buttonRect = menuButton.getBoundingClientRect();
-    dropdown.style.position = 'fixed';
-    dropdown.style.bottom = `${window.innerHeight - buttonRect.top}px`;
-    dropdown.style.right = `${window.innerWidth - buttonRect.right}px`;
-  };
 
-  // Position initially and on window resize
-  window.addEventListener('resize', positionDropdown);
-  menuButton.addEventListener('click', positionDropdown);
+  // Add event listener to close dropdown when clicking outside
+  document.addEventListener('click', () => {
+    dropdown.classList.remove('show');
+  });
 
-  // Add the menu button and dropdown to card actions
-  cardActions.appendChild(menuButton);
-  // Append dropdown to the body instead of card to avoid clipping issues
-  document.body.appendChild(dropdown);
-
-  // Add the actions to the card
+  // Append everything to the card
   card.appendChild(cardContent);
-  card.appendChild(cardActions);
-
-  // Add thumbnail
-  if (item.thumbnail) {
-    const thumbnailElement = document.createElement('div');
-    thumbnailElement.className = 'card-thumbnail';
-    const imgElement = document.createElement('img');
-    imgElement.src = item.thumbnail;
-    imgElement.alt = 'Thumbnail';
-    thumbnailElement.appendChild(imgElement);
-    card.appendChild(thumbnailElement);
-  }
+  card.appendChild(menuButton);
+  card.appendChild(dropdown);
 
   return card;
 }
 
 // Placeholder functions for the menu actions
 function shareItem(item) {
-  console.log('Share item:', item);
-  // Implementation to be added later
+  // Implementation from utils.js
+  window.shareItem(item);
 }
 
 function addNoteToItem(item) {
-  console.log('Add note to item:', item);
-  // Implementation to be added later
+  // Create the note input modal
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>Add/Edit Note</h3>
+      <textarea class="note-input" placeholder="Enter your note here...">${item.notes || ''}</textarea>
+      <div class="modal-buttons">
+        <button class="save-note">Save</button>
+        <button class="cancel-note">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Add event listeners
+  const textarea = modal.querySelector('.note-input');
+  const saveButton = modal.querySelector('.save-note');
+  const cancelButton = modal.querySelector('.cancel-note');
+
+  saveButton.addEventListener('click', () => {
+    const noteText = textarea.value.trim();
+    
+    // Get the appropriate storage key based on item type
+    const storageKey = item.isHighlight ? 'savedHighlights' : 
+                      (item.type === 'text' ? 'savedTextItems' : 'savedItems');
+
+    // Update the note in storage
+    chrome.storage.local.get([storageKey], function(result) {
+      const items = result[storageKey] || [];
+      const itemIndex = items.findIndex(i => i.id === item.id);
+      
+      if (itemIndex !== -1) {
+        items[itemIndex].notes = noteText;
+        chrome.storage.local.set({ [storageKey]: items }, function() {
+          // Refresh the display
+          loadSavedItems();
+          showNotification('Note saved successfully!', 'success');
+        });
+      }
+    });
+
+    document.body.removeChild(modal);
+  });
+
+  cancelButton.addEventListener('click', () => {
+    document.body.removeChild(modal);
+  });
+
+  // Focus the textarea
+  textarea.focus();
 }
 
 function addToCollection(item) {
+  // Not implemented yet
   console.log('Add to collection:', item);
-  // Implementation to be added later
-}
-
-function toggleFavorite(item) {
-  console.log('Toggle favorite:', item);
-  // Implementation to be added later
-}
-
-function togglePrivate(item) {
-  console.log('Toggle private:', item);
-  // Implementation to be added later
 }
 
 // Function to delete an item

@@ -274,10 +274,28 @@ footer {
 }
 
 .status-area {
-  min-height: 20px;
+  margin: 10px;
+  padding: 8px;
   text-align: center;
-  font-size: 13px;
-  padding: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  min-height: 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.status-area:not(:empty) {
+  opacity: 1;
+}
+
+.status-area.success-message {
+  background-color: #e6f4ea;
+  color: #1e8e3e;
+}
+
+.status-area.error-message {
+  background-color: #fce8e6;
+  color: #d93025;
 }
 
 /* Animations */

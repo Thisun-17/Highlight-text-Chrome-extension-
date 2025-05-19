@@ -11,9 +11,27 @@
     </div>
   </div>
 
-  <div id="items-container" class="card-container">
-    <!-- Cards will be dynamically inserted here by JavaScript -->
-  </div><script src="content-storage.js" type="text/javascript"></script>
+  <!-- Tab Navigation -->
+  <div class="tabs-container">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="saved-items">Saved Items</button>
+      <!-- Additional tabs can be added here -->
+    </div>
+  </div>
+
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+    <!-- Saved Items Tab -->
+    <div id="saved-items" class="tab-pane active">
+      <div id="items-container" class="card-container">
+        <!-- Cards will be dynamically inserted here by JavaScript -->
+      </div>
+    </div>
+    <!-- Additional tab panes can be added here -->
+  </div>
+
+  <script src="content-storage.js" type="text/javascript"></script>
   <script src="utils.js" type="text/javascript"></script>
   <script src="saved.js" type="text/javascript"></script>
   <script src="theme.js" type="text/javascript"></script>
