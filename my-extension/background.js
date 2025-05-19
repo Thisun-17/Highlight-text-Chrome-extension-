@@ -273,11 +273,11 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
           
           // Get excerpt
           const excerpt = mainContent.substring(0, 150) + (mainContent.length > 150 ? '...' : '');
-          
-          return {
+            return {
             title: pageTitle,
             description: pageDescription,
             url: pageUrl,
+            pageUrl: pageUrl,  // Adding pageUrl for consistency
             siteName: siteName,
             content: mainContent,
             excerpt: excerpt,
@@ -286,12 +286,19 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
           };
         } catch (e) {
           console.error('Error extracting page content:', e);
-          return { error: e.message, title: document.title, url: window.location.href };
+          return { error: e.message, title: document.title, url: window.location.href, pageUrl: window.location.href };
         }
       }
-    }, function(results) {
+    }, function(results) {      
       if (results && results[0] && results[0].result && !results[0].result.error) {
         const fullPageData = results[0].result;
+        
+        // Ensure URL consistency
+        if (fullPageData.url) {
+          fullPageData.pageUrl = fullPageData.pageUrl || fullPageData.url;
+        } else if (fullPageData.pageUrl) {
+          fullPageData.url = fullPageData.url || fullPageData.pageUrl;
+        }
         
         // Save the full page content
         saveToStorage('fullpage', fullPageData, function() {
