@@ -1,6 +1,5 @@
 // Functions to separately handle highlighted and plain text content
 
-// This should be added to background.js or can be used as a separate module
 // Function to save text without highlighting
 function saveTextOnly(content, callback) {
   chrome.storage.local.get(['savedTextItems'], function(result) {
@@ -25,6 +24,7 @@ function saveTextOnly(content, callback) {
       text: textContent,
       pageUrl: content.pageUrl,
       pageTitle: content.pageTitle,
+      notes: content.notes || '',
       timestamp: new Date().toISOString()
     };
     
@@ -58,8 +58,10 @@ function saveHighlightedText(content, callback) {
     // Create highlight item
     const highlightItem = {
       id: content.highlightId || 'highlight-' + Date.now(),
-      text: textContent,      pageUrl: content.pageUrl,
+      text: textContent,
+      pageUrl: content.pageUrl,
       pageTitle: content.pageTitle,
+      notes: content.notes || '',
       color: content.color || '#90ee90', // Default to light green
       timestamp: new Date().toISOString()
     };
@@ -77,58 +79,23 @@ function saveHighlightedText(content, callback) {
 function loadAllSavedContent() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['savedItems', 'savedTextItems', 'savedHighlights'], function(result) {
-      const legacyItems = result.savedItems || [];
+      const items = result.savedItems || [];
       const textItems = result.savedTextItems || [];
       const highlights = result.savedHighlights || [];
-        // Combine all items and convert to a unified format if needed
+      
+      // Combine all items into one unified format
       const allItems = [
-        // Convert legacy items if needed
-        ...legacyItems.map(item => {
-          // Handle article type separately
-          if (item.type === 'article') {
-            return {
-              id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
-              type: 'article',
-              text: item.content?.text || item.content?.description || item.content?.title || '',
-              pageUrl: item.content?.pageUrl || item.content?.url || '',
-              pageTitle: item.content?.pageTitle || item.content?.title || '',
-              url: item.content?.url || item.content?.pageUrl || '',
-              title: item.content?.title || item.content?.pageTitle || '',
-              timestamp: item.timestamp || item.date || new Date().toISOString(),
-              isLegacy: true,
-              notes: item.notes || item.content?.notes || (item.content?.content?.notes) || ''
-            };
-          }
-          
-          // Handle full page type
-          if (item.type === 'fullpage') {
-            return {
-              id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
-              type: 'fullpage',
-              text: item.content?.text || item.content?.content || item.content?.excerpt || '',
-              pageUrl: item.content?.pageUrl || item.content?.url || '',
-              pageTitle: item.content?.pageTitle || item.content?.title || '',
-              url: item.content?.url || item.content?.pageUrl || '',
-              title: item.content?.title || item.content?.pageTitle || '',
-              excerpt: item.content?.excerpt || '',
-              timestamp: item.timestamp || item.date || new Date().toISOString(),
-              isLegacy: true,
-              notes: item.notes || item.content?.notes || (item.content?.content?.notes) || ''
-            };
-          }
-          
-          // Handle other types
+        // Convert legacy items
+        ...items.map(item => {
           return {
-            id: item.id || 'legacy-' + Date.now() + Math.random().toString(36).substring(2, 8),
-            type: item.type,
-            text: item.content?.text || (typeof item.content === 'string' ? item.content : ''),
-            pageUrl: item.content?.pageUrl || item.content?.url || '',
-            pageTitle: item.content?.pageTitle || '',
-            url: item.content?.url || item.content?.pageUrl || '',
-            color: item.content?.color,
+            id: item.id,
+            type: item.type || 'text',
+            text: (item.content && item.content.text) || item.text || '',
+            pageUrl: (item.content && item.content.pageUrl) || item.pageUrl || '',
+            pageTitle: (item.content && item.content.pageTitle) || item.pageTitle || '',
             timestamp: item.timestamp || item.date || new Date().toISOString(),
-            isLegacy: true,
-            notes: item.notes || (item.content?.notes) || (item.content?.content?.notes) || ''
+            isHighlight: item.content && item.content.wasHighlighted,
+            notes: item.notes || (item.content && item.content.notes) || ''
           };
         }),
         
