@@ -98,11 +98,46 @@ function createItemCard(item) {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.id = item.id;
-  
-  // Create card content container
+    // Create card content container
   const cardContent = document.createElement('div');
   cardContent.className = 'card-content';
-  
+
+  // Create source info container
+  const sourceInfoContainer = document.createElement('div');
+  sourceInfoContainer.className = 'source-info';
+
+  // Add favicon if we can get it from the URL
+  if (item.pageUrl) {
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(item.pageUrl).hostname}`;
+    const faviconImg = document.createElement('img');
+    faviconImg.className = 'source-favicon';
+    faviconImg.src = faviconUrl;
+    sourceInfoContainer.appendChild(faviconImg);
+  }
+
+  // Add title and URL
+  const titleUrlContainer = document.createElement('div');
+  titleUrlContainer.className = 'title-url-container';
+
+  if (item.pageTitle) {
+    const titleElement = document.createElement('div');
+    titleElement.className = 'card-title';
+    titleElement.textContent = item.pageTitle;
+    titleUrlContainer.appendChild(titleElement);
+  }
+
+  if (item.pageUrl) {
+    const urlElement = document.createElement('a');
+    urlElement.className = 'card-url';
+    urlElement.href = item.pageUrl;
+    urlElement.textContent = new URL(item.pageUrl).hostname;
+    urlElement.target = '_blank';
+    titleUrlContainer.appendChild(urlElement);
+  }
+
+  sourceInfoContainer.appendChild(titleUrlContainer);
+  cardContent.appendChild(sourceInfoContainer);
+
   // Add text content
   const textElement = document.createElement('div');
   textElement.className = 'card-text';
@@ -118,18 +153,9 @@ function createItemCard(item) {
     textElement.className = 'fullpage-text';
     card.classList.add('article-card');
   }
-
   // Set text content
-  textElement.textContent = item.text || 'No text content';
+  textElement.textContent = item.text || '';
   cardContent.appendChild(textElement);
-
-  // Add title if available
-  if (item.pageTitle) {
-    const titleElement = document.createElement('div');
-    titleElement.className = 'card-title';
-    titleElement.textContent = item.pageTitle;
-    cardContent.appendChild(titleElement);
-  }
 
   // Add notes if they exist
   if (item.notes && item.notes.trim()) {
@@ -157,16 +183,7 @@ function createItemCard(item) {
     timeElement.textContent = date.toLocaleString();
     cardContent.appendChild(timeElement);
   }
-
-  // Add URL if available
-  if (item.pageUrl) {
-    const urlElement = document.createElement('a');
-    urlElement.className = 'card-url';
-    urlElement.href = item.pageUrl;
-    urlElement.textContent = new URL(item.pageUrl).hostname;
-    urlElement.target = '_blank';
-    cardContent.appendChild(urlElement);
-  }
+  // We've moved the URL to the source-info section
 
   // Create menu button
   const menuButton = document.createElement('button');
@@ -186,11 +203,8 @@ function createItemCard(item) {
 
   // Store the type based on item properties
   const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
-
   // Add menu items
   const menuItems = [
-    { icon: 'fa-sticky-note', text: item.notes ? 'Edit note' : 'Add note', action: () => addNoteToItem(item) },
-    { icon: 'fa-share-alt', text: 'Share', action: () => shareItem(item) },
     { icon: 'fa-trash-alt', text: 'Delete', action: () => {
       if (confirm('Are you sure you want to delete this item?')) {
         deleteItem(item.id, itemType);
