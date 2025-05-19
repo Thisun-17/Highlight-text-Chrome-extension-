@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,  "name": "Highlighter",
   "version": "1.0",
-  "description": "Effortlessly highlight and save text from web pages.",
+  "description": "Never lose valuable web content again. Highlight text, bookmark pages, and add notes for your personalized web archive.",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
   },
@@ -17,8 +17,8 @@
     "storage",
     "activeTab",
     "scripting",
-    "contextMenus",
-    "tabs"
+    "tabs",
+    "notifications"
   ],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
