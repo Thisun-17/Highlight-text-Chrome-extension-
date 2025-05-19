@@ -24,7 +24,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: Arial, sans-serif;
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
@@ -228,15 +228,16 @@ h1 {
 
 .card {
   background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 12px; /* Adjusted border radius */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* Adjusted shadow */
+  border: 1px solid #e0e0e0; /* Slightly darker border */
   overflow: hidden;
-  padding: 15px;
+  padding: 12px; /* Adjusted padding */
   position: relative;
   transition: all 0.3s ease;
   display: flex;
-  margin-bottom: 20px;
+  margin-bottom: 12px; /* Adjusted margin */
+  align-items: flex-start; /* Align items to the top */
 }
 
 .card:hover {
@@ -262,6 +263,49 @@ h1 {
   flex: 1;
   display: flex;
   flex-direction: column;
+  margin-right: 16px; /* Add margin to separate content and thumbnail */
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 4px;
+}
+
+.card-description {
+  font-size: 14px;
+  color: var(--secondary-text-color);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.card-url {
+  font-size: 14px;
+  font-weight: 500;
+  color: #007bff;
+  text-decoration: none;
+  padding: 4px 0;
+  display: inline-block;
+}
+
+.card-url:hover {
+  text-decoration: underline;
+}
+
+.card-thumbnail {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-left: 16px;
+  align-self: center;
+}
+
+.card-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .card-content p {
@@ -291,7 +335,7 @@ h1 {
   font-weight: 500;
   font-size: 14px;
   color: #444;
-  margin-bottom: 2px;
+  margin-bottom: 5px;
 }
 
 .favicon {
@@ -319,8 +363,8 @@ h1 {
 /* Button styling for card actions */
 .card-actions {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
+  bottom: 10px;
+  right: 10px;
   display: flex;
   justify-content: flex-end;
 }
@@ -474,10 +518,96 @@ h1 {
   animation: fade-out 0.3s ease-out forwards;
 }
 
+/* Tab Navigation Styles */
+.tabs-container {
+  max-width: 800px;
+  margin: 0 auto 20px;
+}
+
+/* Search Bar Styles */
+.search-container {
+  max-width: 800px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+}
+
+.search-container input[type="text"] {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+  margin-right: 10px;
+}
+
+.search-container button {
+  padding: 10px 20px;
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+}
+
+.search-container button:hover {
+  background-color: darken(var(--button-primary-bg), 10%);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--secondary-text-color);
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-color);
+  background-color: var(--hover-color);
+}
+
+.tab-btn.active {
+  color: var(--button-primary-bg);
+  border-bottom: 3px solid var(--button-primary-bg);
+}
+
+.tab-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Dropdown menu styles */
 .dropdown-menu {
   position: absolute;
   right: 0;
+  top: auto; /* Override bottom positioning */
   bottom: 36px; /* Position above the button now */
   background-color: white;
   border-radius: 8px;
@@ -544,4 +674,18 @@ h1 {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.url-container {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  background-color: rgba(0, 123, 255, 0.05);
+  border-radius: 4px;
+  padding: 4px 8px;
+  width: fit-content;
+}
+
+.url-container:hover {
+  background-color: rgba(0, 123, 255, 0.1);
 }

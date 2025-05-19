@@ -1,0 +1,148 @@
+/* Note Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.modal-content {
+  background-color: var(--card-bg-color);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal-show .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 18px;
+}
+
+.close-modal {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--secondary-text-color);
+  padding: 0;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-text {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: var(--secondary-text-color);
+}
+
+.note-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-color);
+  background-color: var(--card-bg-color);
+  resize: vertical;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modal-footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-cancel {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--secondary-text-color);
+}
+
+.modal-save {
+  background-color: var(--button-primary-bg);
+  border: none;
+  color: var(--button-primary-text);
+}
+
+.modal-cancel:hover {
+  background-color: var(--hover-color);
+}
+
+.modal-save:hover {
+  opacity: 0.9;
+}
+
+/* Improved note styling in cards */
+.card-description .note-text {
+  font-style: italic;
+  color: var(--secondary-text-color);
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 3px solid var(--button-primary-bg);
+}
+
+/* Responsive modal */
+@media (max-width: 600px) {
+  .modal-content {
+    width: 95%;
+  }
+  
+  .modal-header {
+    padding: 12px 15px;
+  }
+  
+  .modal-body, 
+  .modal-footer {
+    padding: 15px;
+  }
+}
