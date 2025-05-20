@@ -236,12 +236,24 @@ document.addEventListener('DOMContentLoaded', function() {
         showStatus('Item already saved!');
         if (callback) callback(); // Call the callback even if duplicate
         return; // Exit without saving
-      }      // First highlight the text if it's a text selection
+      }
+
+      // First highlight the text if it's a text selection
       if (type === 'text') {
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {          chrome.tabs.sendMessage(tabs[0].id, {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (!tabs[0]) {
+            console.error("No active tab found");
+            showStatus('Unable to access the active tab!', true);
+            return;
+          }
+
+          // Ensure page title is captured
+          content.pageTitle = content.pageTitle || tabs[0].title || 'Untitled Page';
+
+          chrome.tabs.sendMessage(tabs[0].id, {
             action: "highlightSelectedText",
             highlightId: id,
-            selectionText: content.text, // Pass the selected text
+            selectionText: content.text,
             color: "#90EE90" // Always use light green
           }, function(response) {
             if (response && response.success) {
@@ -251,8 +263,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 type: type,
                 timestamp: timestamp,
                 date: timestamp,      // Keep date field for backwards compatibility
-                content: content,     // This now includes 'notes' field if provided
-                highlightId: id
+                content: {
+                  ...content,
+                  highlightId: id,
+                  wasHighlighted: true
+                }
               });
               
               // Update storage after highlighting
@@ -278,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
         date: timestamp,      // Keep date field for backwards compatibility
         content: content
       });
-      
+    
       // Update storage
       chrome.storage.local.set({ savedItems: savedItems }, function() {
         console.log(`${type} saved with id: ${id}`);
@@ -452,11 +467,11 @@ document.addEventListener('DOMContentLoaded', function() {
               
               // Get excerpt
               const excerpt = mainContent.substring(0, 150) + (mainContent.length > 150 ? '...' : '');
-              
-              return {
+                return {
                 title: pageTitle,
                 description: pageDescription,
                 url: pageUrl,
+                pageUrl: pageUrl,  // Adding pageUrl for consistency across all saved items
                 siteName: siteName,
                 content: mainContent,
                 excerpt: excerpt,
@@ -474,14 +489,31 @@ document.addEventListener('DOMContentLoaded', function() {
             showStatus('Could not access page content', true);
             return;
           }
-          
-          if (results && results[0] && results[0].result) {
+            if (results && results[0] && results[0].result) {
             const fullPageData = results[0].result;
             logDebug(`Extracted full page content: ${fullPageData.excerpt}`);
             
+            // Ensure both URL properties are set for consistency
+            if (fullPageData.url) {
+              fullPageData.pageUrl = fullPageData.pageUrl || fullPageData.url;
+            } else if (fullPageData.pageUrl) {
+              fullPageData.url = fullPageData.url || fullPageData.pageUrl;
+            }
+            
             // Save the full page content
-            saveToStorage('fullpage', fullPageData, function() {
-              showStatus('Full page saved successfully!');
+            // Capture a screenshot of the page
+            chrome.tabs.captureVisibleTab(null, {}, function(imageUri) {
+              if (imageUri) {
+                fullPageData.thumbnail = imageUri;
+                saveToStorage('fullpage', fullPageData, function() {
+                  showStatus('Full page saved successfully!');
+                });
+              } else {
+                saveToStorage('fullpage', fullPageData, function() {
+                  showStatus('Full page saved successfully!');
+                });
+                showStatus('Failed to capture page screenshot', true);
+              }
             });
           } else {
             showStatus('Failed to extract page content', true);
@@ -492,13 +524,26 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     logDebug("ERROR: Save Full Page button not found!");
   }
-  
-  // Add to library button functionality with enhanced highlighting capabilities
+    // Add to library button functionality with enhanced highlighting capabilities
   const addToLibraryBtn = document.getElementById('addToLibrary');
   if (addToLibraryBtn) {
     logDebug("Add to Library button found, setting up click handler");
     
+    // Track if a save operation is in progress to prevent duplicates
+    let saveInProgress = false;
+    
     addToLibraryBtn.addEventListener('click', function() {
+      // Prevent duplicate saves by checking if save is already in progress
+      if (saveInProgress) {
+        logDebug("Save operation already in progress, ignoring duplicate click");
+        return;
+      }
+      
+      // Set flag to prevent duplicate saves
+      saveInProgress = true;
+      // Disable the button to provide visual feedback
+      addToLibraryBtn.disabled = true;
+      
       logDebug("Add to Library button clicked");
       
       // Get the values from both input fields
@@ -808,94 +853,127 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add highlight info to the content object
     content.highlightId = highlightId;
     content.wasHighlighted = wasHighlighted;
-    
-    // Add metadata specifically for highlighting persistence
-    content.metadata = {
-      isHighlight: true,
-      highlightId: highlightId,
-      color: "#90EE90", // Light green
-      timestamp: new Date().toISOString()
-    };
-    
-    // Save to storage
-    chrome.storage.local.get(['savedItems'], function(result) {
-      const savedItems = result.savedItems || [];
-      
-      // Create the new item
-      const newItem = {
-        id: highlightId,
-        type: 'text',
-        content: content,
-        timestamp: new Date().toISOString(),
-        date: new Date().toISOString(), // For backwards compatibility
-        notes: content.notes || "" // Add notes directly at the root level to ensure it's accessible
-      };
-      
-      // Check for duplicates
-      const isDuplicate = savedItems.some(item => 
-        item.type === 'text' && 
-        item.content && 
-        item.content.text === content.text &&
-        item.content.pageUrl === content.pageUrl
-      );
-      
-      if (isDuplicate) {
-        logDebug("This text has already been saved (duplicate)");
-        showStatus('This text is already in your library!');
-        return;
+
+    // Get page title from active tab if not provided
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs[0] && !content.pageTitle) {
+        content.pageTitle = tabs[0].title || 'Untitled Page';
       }
       
-      // Add to saved items
-      savedItems.push(newItem);
+      // Add metadata specifically for highlighting persistence
+      content.metadata = {
+        isHighlight: true,
+        highlightId: highlightId,
+        color: "#90EE90", // Light green
+        timestamp: new Date().toISOString()
+      };
       
       // Save to storage
-      chrome.storage.local.set({ savedItems: savedItems }, function() {
-        logDebug(`Text saved with ID: ${highlightId}`);
-        showStatus(wasHighlighted ? 'Added to library and highlighted!' : 'Added to library!');
+      chrome.storage.local.get(['savedItems'], function(result) {
+        const savedItems = result.savedItems || [];
         
-        // After saving, send a message to the content script to ensure the highlight persists
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (tabs && tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "restoreHighlights"
-            }, function(response) {
-              logDebug("Sent restoreHighlights message to ensure highlight persists");
-            });
+        // Create the new item
+        const newItem = {
+          id: highlightId,
+          type: 'text',
+          content: {
+            ...content,
+            pageTitle: content.pageTitle || 'Untitled Page' // Ensure page title exists
+          },
+          timestamp: new Date().toISOString(),
+          date: new Date().toISOString(), // For backwards compatibility
+          notes: content.notes || "" // Add notes directly at the root level to ensure it's accessible
+        };
+        
+        // Check for duplicates
+        const isDuplicate = savedItems.some(item => 
+          item.type === 'text' && 
+          item.content && 
+          item.content.text === content.text &&
+          item.content.pageUrl === content.pageUrl
+        );
+          
+        if (isDuplicate) {
+          logDebug("This text has already been saved (duplicate)");
+          showStatus('This text is already in your library!');
+          
+          // Reset the save operation flag
+          saveInProgress = false;
+          // Re-enable the button
+          const addToLibraryBtn = document.getElementById('addToLibrary');
+          if (addToLibraryBtn) {
+            addToLibraryBtn.disabled = false;
           }
-        });
-        
-        // Clear both input fields
-        if (selectedTextInput) selectedTextInput.value = '';
-        if (noteInput) noteInput.value = '';
-        
-        // Also clear the stored selection from chrome.storage
-        chrome.storage.local.remove('currentSelectedText', function() {
-          logDebug("Cleared the stored selection from chrome.storage");
-        });
-        
-        // Clear the local tracking variable for the selection
-        try {
-          localStorage.removeItem('extensionSelectedText');
-        } catch (e) {
-          logDebug("Failed to clear localStorage: " + e.message);
+          
+          return;
         }
         
-        // Notify the background script to clear its stored selection
-        chrome.runtime.sendMessage({
-          action: "clearSelectedText"
-        }, function(response) {
-          logDebug("Notified background script to clear selection");
-        });
+        // Add to saved items
+        savedItems.push(newItem);
         
-        // Notify the content script to clear any selection in the page
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (tabs && tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "clearSelection"
-            }, function(response) {
-              logDebug("Notified content script to clear selection");
-            });
+        // Save to storage
+        chrome.storage.local.set({ savedItems: savedItems }, function() {
+          logDebug(`Text saved with ID: ${highlightId}`);
+          
+          // Show success message
+          showStatus('Added successfully!');
+
+          // After the message is shown, clear any selected text
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs && tabs[0]) {
+              chrome.tabs.sendMessage(tabs[0].id, {
+                action: "clearSelection"
+              }, function(response) {
+                logDebug("Notified content script to clear selection");
+              });
+            }
+          });
+
+          // Clear the form
+          if (selectedTextInput) selectedTextInput.value = '';
+          if (noteInput) noteInput.value = '';
+          
+          // Also clear the stored selection from chrome.storage
+          chrome.storage.local.remove('currentSelectedText', function() {
+            logDebug("Cleared the stored selection from chrome.storage");
+          });
+          
+          // Clear the local tracking variable for the selection
+          try {
+            localStorage.removeItem('extensionSelectedText');
+          } catch (e) {
+            logDebug("Failed to clear localStorage: " + e.message);
           }
+          
+          // Notify the background script to clear its stored selection
+          chrome.runtime.sendMessage({
+            action: "clearSelectedText"
+          }, function(response) {
+            logDebug("Notified background script to clear selection");
+          });
+          
+          // Close the popup after 1.5 seconds to give time for the success message to be seen
+          setTimeout(() => {
+            window.close();
+          }, 1500);
+          
+          // Reset flags and re-enable button
+          saveInProgress = false;
+          const addToLibraryBtn = document.getElementById('addToLibrary');
+          if (addToLibraryBtn) {
+            addToLibraryBtn.disabled = false;
+          }
+          
+          // After saving, send a message to the content script to ensure the highlight persists
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs && tabs[0]) {
+              chrome.tabs.sendMessage(tabs[0].id, {
+                action: "restoreHighlights"
+              }, function(response) {
+                logDebug("Sent restoreHighlights message to ensure highlight persists");
+              });
+            }
+          });
         });
       });
     });

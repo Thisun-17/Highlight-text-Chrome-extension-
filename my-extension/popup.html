@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="theme-styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
   <style>    
     .container {
       width: 380px;
@@ -275,7 +276,7 @@
 </head>
 <body>
   <div class="container">
-    <button class="close-button">✕</button>
+    <button class="close-button" aria-label="Close"></button>
     <button class="dustbin-button" title="Clear all">
       <i class="fas fa-trash-alt"></i>
     </button>
@@ -288,15 +289,16 @@
       </div>
       
       <div class="input-group">
-        <textarea class="selected-text-input" placeholder="Your highlighted text will appear here" readonly></textarea>
-      </div>
+        <textarea class="selected-text-input" placeholder="Your highlighted text will appear here" readonly></textarea>      </div>
       
+      <div id="status" class="status-area"></div>
+
       <div class="input-group">
         <input type="text" class="note-input" placeholder="Add a note">
       </div>
       
       <div class="button-container">
-        <button class="primary-btn" id="addToLibrary">Add to my library</button>
+        <button class="primary-btn" id="addToLibrary">Add to Highlighter</button>
         <button class="secondary-btn" id="saveFullPage" style="margin-top: 12px;">
           <i class="fas fa-file-alt"></i> Save Full Page
         </button>
