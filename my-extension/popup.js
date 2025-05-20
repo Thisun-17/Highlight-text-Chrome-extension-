@@ -385,146 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.error('savedItems button not found');
   }
   
-  // Save Full Page button functionality
-  const saveFullPageBtn = document.getElementById('saveFullPage');
-  if (saveFullPageBtn) {
-    logDebug("Save Full Page button found, setting up click handler");
-    
-    saveFullPageBtn.addEventListener('click', function() {
-      logDebug("Save Full Page button clicked");
-      
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs[0]) {
-          showStatus('Unable to access the active tab!', true);
-          return;
-        }
-        
-        // Execute script in the current tab to extract the full page content
-        chrome.scripting.executeScript({
-          target: {tabId: tabs[0].id},
-          function: function() {
-            try {
-              const getMetaContent = (name) => {
-                const meta = document.querySelector(`meta[name="${name}"], meta[property="${name}"], meta[property="og:${name}"]`);
-                return meta ? meta.getAttribute("content") : null;
-              };
-              
-              // Extract metadata
-              const pageTitle = document.title || '';
-              const pageDescription = getMetaContent("description") || '';
-              const pageUrl = window.location.href;
-              const siteName = getMetaContent("site_name") || window.location.hostname;
-              
-              // Try to find the main article content
-              const possibleArticleSelectors = [
-                'article', '[role="article"]', '.article', '.post-content', '.entry-content',
-                '.content', 'main', '#main', '.main-content', '.post', '.blog-post'
-              ];
-              
-              let mainContent = '';
-              let articleElement = null;
-              
-              // Try each selector until we find a match
-              for (const selector of possibleArticleSelectors) {
-                const elements = document.querySelectorAll(selector);
-                if (elements.length > 0) {
-                  articleElement = Array.from(elements).sort((a, b) => 
-                    b.textContent.trim().length - a.textContent.trim().length
-                  )[0];
-                  
-                  if (articleElement) {
-                    mainContent = articleElement.textContent.trim();
-                    break;
-                  }
-                }
-              }
-              
-              // If no article element was found, use the body as fallback
-              if (!mainContent) {
-                // Exclude common non-content areas
-                const nonContentSelectors = [
-                  'header', 'footer', 'nav', 'aside', '.header', '.footer', '.nav', '.sidebar',
-                  '.comments', '.menu', '.navigation', '[role="banner"]', '[role="navigation"]'
-                ];
-                
-                const bodyClone = document.body.cloneNode(true);
-                
-                nonContentSelectors.forEach(selector => {
-                  const elements = bodyClone.querySelectorAll(selector);
-                  elements.forEach(el => {
-                    if (el && el.parentNode) el.parentNode.removeChild(el);
-                  });
-                });
-                
-                mainContent = bodyClone.textContent.trim();
-              }
-              
-              // Clean up the content
-              mainContent = mainContent
-                .replace(/[\t\n]+/g, '\n')
-                .replace(/\s{2,}/g, ' ')
-                .trim();
-              
-              // Get excerpt
-              const excerpt = mainContent.substring(0, 150) + (mainContent.length > 150 ? '...' : '');
-                return {
-                title: pageTitle,
-                description: pageDescription,
-                url: pageUrl,
-                pageUrl: pageUrl,  // Adding pageUrl for consistency across all saved items
-                siteName: siteName,
-                content: mainContent,
-                excerpt: excerpt,
-                savedAt: new Date().toISOString(),
-                type: 'fullpage'
-              };
-            } catch (e) {
-              console.error('Error extracting page content:', e);
-              return { error: e.message, title: document.title, url: window.location.href };
-            }
-          }
-        }, function(results) {
-          if (chrome.runtime.lastError) {
-            logDebug(`Error executing script: ${chrome.runtime.lastError.message}`);
-            showStatus('Could not access page content', true);
-            return;
-          }
-            if (results && results[0] && results[0].result) {
-            const fullPageData = results[0].result;
-            logDebug(`Extracted full page content: ${fullPageData.excerpt}`);
-            
-            // Ensure both URL properties are set for consistency
-            if (fullPageData.url) {
-              fullPageData.pageUrl = fullPageData.pageUrl || fullPageData.url;
-            } else if (fullPageData.pageUrl) {
-              fullPageData.url = fullPageData.url || fullPageData.pageUrl;
-            }
-            
-            // Save the full page content
-            // Capture a screenshot of the page
-            chrome.tabs.captureVisibleTab(null, {}, function(imageUri) {
-              if (imageUri) {
-                fullPageData.thumbnail = imageUri;
-                saveToStorage('fullpage', fullPageData, function() {
-                  showStatus('Full page saved successfully!');
-                });
-              } else {
-                saveToStorage('fullpage', fullPageData, function() {
-                  showStatus('Full page saved successfully!');
-                });
-                showStatus('Failed to capture page screenshot', true);
-              }
-            });
-          } else {
-            showStatus('Failed to extract page content', true);
-          }
-        });
-      });
-    });
-  } else {
-    logDebug("ERROR: Save Full Page button not found!");
-  }
-    // Add to library button functionality with enhanced highlighting capabilities
+  // Add to library button functionality with enhanced highlighting capabilities
   const addToLibraryBtn = document.getElementById('addToLibrary');
   if (addToLibraryBtn) {
     logDebug("Add to Library button found, setting up click handler");
@@ -551,8 +412,22 @@ document.addEventListener('DOMContentLoaded', function() {
       const noteText = noteInput ? noteInput.value.trim() : "";
       
       if (!selectedText) {
-        showStatus('No text selected to save', true);
-        logDebug("Error: No text selected to save");
+        // If no text is selected, save only the page URL and title as a minimal entry
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+          if (!tabs[0]) {
+            saveInProgress = false;
+            addToLibraryBtn.disabled = false;
+            return;
+          }
+          const url = tabs[0].url;
+          const title = tabs[0].title || 'Untitled Page';
+          // Save as a minimal 'article' type (or you can use a custom type if you prefer)
+          saveToStorage('article', { url: url, title: title, pageUrl: url }, function() {
+            showStatus('Page info saved!');
+            saveInProgress = false;
+            addToLibraryBtn.disabled = false;
+          });
+        });
         return;
       }
       
