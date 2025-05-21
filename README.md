@@ -5,7 +5,7 @@ A Chrome extension that allows users to easily highlight and save text from webs
 ## Features
 
 ### Text Management
-- **Save & Highlight Text**: Select text on any webpage and save it with a soft pink highlight
+- **Save & Highlight Text**: Select text on any webpage and save it with a light green highlight
 - **Save Text Only**: Save selected text without highlighting it on the page
 - **Context Menu Integration**: Right-click to access save options
 - **Popup Interface**: Quick access to all features from the extension icon
