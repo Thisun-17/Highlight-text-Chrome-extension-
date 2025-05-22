@@ -205,6 +205,9 @@ function createItemCard(item) {
   const itemType = item.isHighlight ? 'highlight' : (item.type || 'text');
   // Add menu items
   const menuItems = [
+    { icon: 'fa-pen', text: 'Edit Note', action: () => {
+      addNoteToItem(item);
+    }},
     { icon: 'fa-trash-alt', text: 'Delete', action: () => {
       if (confirm('Are you sure you want to delete this item?')) {
         deleteItem(item.id, itemType);
@@ -282,26 +285,58 @@ function addNoteToItem(item) {
 
   saveButton.addEventListener('click', () => {
     const noteText = textarea.value.trim();
-    
-    // Get the appropriate storage key based on item type
     const storageKey = item.isHighlight ? 'savedHighlights' : 
                       (item.type === 'text' ? 'savedTextItems' : 'savedItems');
-
-    // Update the note in storage
     chrome.storage.local.get([storageKey], function(result) {
       const items = result[storageKey] || [];
       const itemIndex = items.findIndex(i => i.id === item.id);
-      
       if (itemIndex !== -1) {
         items[itemIndex].notes = noteText;
         chrome.storage.local.set({ [storageKey]: items }, function() {
-          // Refresh the display
-          loadSavedItems();
+          // Update the note in the card immediately (no reload)
+          const card = document.querySelector(`.card[data-id='${item.id}']`);
+          if (card) {
+            let notesContainer = card.querySelector('.item-notes');
+            if (!notesContainer && noteText) {
+              // If no notes container exists and note is added, create it
+              notesContainer = document.createElement('div');
+              notesContainer.className = 'item-notes';
+              const notesLabel = document.createElement('span');
+              notesLabel.className = 'notes-label';
+              notesLabel.textContent = 'Note: ';
+              const notesContent = document.createElement('span');
+              notesContent.className = 'notes-content';
+              notesContent.textContent = noteText;
+              notesContainer.appendChild(notesLabel);
+              notesContainer.appendChild(notesContent);
+              // Insert before timestamp if possible
+              const timestamp = card.querySelector('.timestamp');
+              if (timestamp) {
+                card.querySelector('.card-content').insertBefore(notesContainer, timestamp);
+              } else {
+                card.querySelector('.card-content').appendChild(notesContainer);
+              }
+            } else if (notesContainer) {
+              // If notes container exists, update or remove
+              const notesContent = notesContainer.querySelector('.notes-content');
+              if (noteText) {
+                notesContent.textContent = noteText;
+                notesContainer.style.display = '';
+              } else {
+                notesContainer.remove();
+              }
+            }
+          }
+          // Also update the item.notes property so future edits show the latest note
+          item.notes = noteText;
+          // Force update the cardContent if note was removed and re-added
+          if (card) {
+            card.classList.remove('card-fade-out');
+          }
           showNotification('Note saved successfully!', 'success');
         });
       }
     });
-
     document.body.removeChild(modal);
   });
 
