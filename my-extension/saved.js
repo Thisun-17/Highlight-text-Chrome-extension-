@@ -175,14 +175,6 @@ function createItemCard(item) {
     cardContent.appendChild(notesContainer);
   }
 
-  // Add timestamp
-  if (item.timestamp) {
-    const date = new Date(item.timestamp);
-    const timeElement = document.createElement('div');
-    timeElement.className = 'timestamp';
-    timeElement.textContent = date.toLocaleString();
-    cardContent.appendChild(timeElement);
-  }
   // We've moved the URL to the source-info section
 
   // Create menu button
