@@ -2,31 +2,36 @@
 // Set up context menu items when extension is installed
 chrome.runtime.onInstalled.addListener(function() {
   console.log("Data FlowX extension installed/updated");
-  // Create context menu items
-  chrome.contextMenus.create({
-    id: "saveText",
-    title: "Save Text",
-    contexts: ["selection"]
-  });
-  chrome.contextMenus.create({
-    id: "saveImage",
-    title: "Save This Image",
-    contexts: ["image"]
-  });
-  chrome.contextMenus.create({
-    id: "saveArticle",
-    title: "Save This Article",
-    contexts: ["page"]
-  });
-  chrome.contextMenus.create({
-    id: "saveFullPage",
-    title: "Save Full Page Content",
-    contexts: ["page"]
-  });
-  chrome.contextMenus.create({
-    id: "restoreHighlights",
-    title: "Restore All Highlights",
-    contexts: ["page"]
+  
+  // Clear all existing context menus first
+  chrome.contextMenus.removeAll(function() {
+    console.log("All existing context menus cleared");    // Create context menu items
+    chrome.contextMenus.create({
+      id: "saveImage",
+      title: "Save This Image",
+      contexts: ["image"]
+    });
+    chrome.contextMenus.create({
+      id: "saveArticle",
+      title: "Save This Article",
+      contexts: ["page"]
+    });
+    chrome.contextMenus.create({
+      id: "saveFullPage",
+      title: "Save Full Page Content",
+      contexts: ["page"]
+    });
+    chrome.contextMenus.create({
+      id: "restoreHighlights",
+      title: "Restore All Highlights",
+      contexts: ["page"]
+    });
+    chrome.contextMenus.create({
+      id: "saveTextToHighlight",
+      title: "Save text to highlight",
+      contexts: ["selection"]
+    });
+    console.log("All context menu items created successfully");
   });
 });
 
@@ -76,49 +81,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
   console.log("Context menu clicked:", info.menuItemId);
-  if (info.menuItemId === "saveText" && info.selectionText) {
-    const highlightId = 'highlight-' + Date.now();
-    setTimeout(() => {
-      chrome.tabs.sendMessage(tab.id, {
-        action: "highlightSelectedText",
-        highlightId: highlightId,
-        color: "#90EE90",
-        selectionText: info.selectionText
-      }, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error("Chrome runtime error:", chrome.runtime.lastError);
-        }
-        if (response && response.success) {
-          saveToStorage('text', {
-            text: info.selectionText,
-            pageUrl: tab.url,
-            pageTitle: tab.title,
-            highlightId: highlightId
-          }, function() {
-            chrome.notifications.create({
-              type: 'basic',
-              iconUrl: 'icon.png',
-              title: 'Text Saved',
-              message: 'The selected text has been saved and highlighted.'
-            });
-          });
-        } else {
-          saveToStorage('text', {
-            text: info.selectionText,
-            pageUrl: tab.url,
-            pageTitle: tab.title
-          }, function() {
-            chrome.notifications.create({
-              type: 'basic',
-              iconUrl: 'icon.png',
-              title: 'Text Saved',
-              message: 'The text has been saved (highlighting failed).'
-            });
-          });
-        }
-      });
-    }, 50);
-  } else if (info.menuItemId === "saveImage" && info.srcUrl) {
+  if (info.menuItemId === "saveImage" && info.srcUrl) {
     saveToStorage('image', info.srcUrl, function() {
       chrome.notifications.create({
         type: 'basic',
@@ -258,6 +221,48 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
         });
       }
     });
+  } else if (info.menuItemId === "saveTextToHighlight" && info.selectionText) {
+    const highlightId = 'highlight-' + Date.now();
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tab.id, {
+        action: "highlightSelectedText",
+        highlightId: highlightId,
+        color: "#90EE90",
+        selectionText: info.selectionText
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error("Chrome runtime error:", chrome.runtime.lastError);
+        }
+        if (response && response.success) {
+          saveToStorage('text', {
+            text: info.selectionText,
+            pageUrl: tab.url,
+            pageTitle: tab.title,
+            highlightId: highlightId
+          }, function() {
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: 'icon.png',
+              title: 'Text Saved and Highlighted',
+              message: 'The selected text has been saved and highlighted.'
+            });
+          });
+        } else {
+          saveToStorage('text', {
+            text: info.selectionText,
+            pageUrl: tab.url,
+            pageTitle: tab.title
+          }, function() {
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: 'icon.png',
+              title: 'Text Saved',
+              message: 'The text has been saved (highlighting failed).'
+            });
+          });
+        }
+      });
+    }, 50);
   } else if (info.menuItemId === "restoreHighlights") {
     chrome.tabs.sendMessage(tab.id, {
       action: "restoreHighlights",
